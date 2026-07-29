@@ -1,0 +1,450 @@
+package com.zcamstudio.kawaiipb.feature.admin.presentation
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.dp
+import com.zcamstudio.kawaiipb.core.designsystem.CherryPink
+import com.zcamstudio.kawaiipb.core.designsystem.InkRose
+import com.zcamstudio.kawaiipb.core.designsystem.KawaiiBackdrop
+import com.zcamstudio.kawaiipb.core.designsystem.KawaiiCard
+import com.zcamstudio.kawaiipb.core.designsystem.KawaiiPill
+import com.zcamstudio.kawaiipb.core.designsystem.KawaiiPrimaryButton
+import com.zcamstudio.kawaiipb.core.designsystem.KawaiiSecondaryButton
+import com.zcamstudio.kawaiipb.core.designsystem.KawaiiSectionTitle
+import com.zcamstudio.kawaiipb.core.designsystem.KawaiiSpacing
+import com.zcamstudio.kawaiipb.core.designsystem.KioskLayoutMode
+import com.zcamstudio.kawaiipb.core.designsystem.LineRose
+import com.zcamstudio.kawaiipb.core.designsystem.MintFoam
+import com.zcamstudio.kawaiipb.core.designsystem.SoftLavender
+import com.zcamstudio.kawaiipb.core.designsystem.SoftText
+import com.zcamstudio.kawaiipb.core.designsystem.WarmCream
+import com.zcamstudio.kawaiipb.core.designsystem.rememberKioskLayoutMode
+import com.zcamstudio.kawaiipb.domain.model.AdminDashboardSummary
+import com.zcamstudio.kawaiipb.domain.model.ChartPoint
+import com.zcamstudio.kawaiipb.domain.model.RankedItem
+import com.zcamstudio.kawaiipb.domain.model.StatusBadge
+
+private val AdminSections = listOf("Dashboard", "Templates", "Stickers", "Camera", "Printer", "Storage", "Settings", "Logs")
+
+@Composable
+fun AdminScreen(
+    uiState: AdminUiState,
+    onSectionSelected: (String) -> Unit,
+    onBackToLanding: () -> Unit
+) {
+    val layoutMode = rememberKioskLayoutMode()
+    val isPortrait = layoutMode == KioskLayoutMode.Portrait
+
+    KawaiiBackdrop(modifier = Modifier.fillMaxSize())
+
+    if (uiState.isLoading || uiState.summary == null) {
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Text(text = "Loading admin dashboard...", style = MaterialTheme.typography.titleLarge)
+        }
+        return
+    }
+
+    val summary = uiState.summary
+
+    if (isPortrait) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(20.dp)
+        ) {
+            AdminSectionTabs(
+                selectedSection = uiState.selectedSection,
+                onSectionSelected = onSectionSelected,
+                onBackToLanding = onBackToLanding
+            )
+            PortraitDashboardContent(summary = summary)
+        }
+    } else {
+        Row(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(28.dp),
+            horizontalArrangement = Arrangement.spacedBy(24.dp)
+        ) {
+            LandscapeSidebar(
+                selectedSection = uiState.selectedSection,
+                onSectionSelected = onSectionSelected,
+                onBackToLanding = onBackToLanding
+            )
+
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(24.dp)
+            ) {
+                LandscapeDashboardContent(summary = summary)
+            }
+        }
+    }
+}
+
+@Composable
+private fun LandscapeSidebar(
+    selectedSection: String,
+    onSectionSelected: (String) -> Unit,
+    onBackToLanding: () -> Unit
+) {
+    val sections = AdminSections
+    KawaiiCard(modifier = Modifier.width(260.dp)) {
+        Column(
+            modifier = Modifier.padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            KawaiiSectionTitle(title = "Admin Panel", subtitle = "Local kiosk control")
+            Spacer(modifier = Modifier.height(6.dp))
+            sections.forEach { section ->
+                val isSelected = section == selectedSection
+                Surface(
+                    shape = MaterialTheme.shapes.medium,
+                    color = if (isSelected) CherryPink.copy(alpha = 0.18f) else Color.Transparent,
+                    border = androidx.compose.foundation.BorderStroke(1.dp, if (isSelected) CherryPink else LineRose)
+                ) {
+                    Text(
+                        text = section,
+                        modifier = Modifier
+                            .clickable { onSectionSelected(section) }
+                            .fillMaxWidth()
+                            .padding(vertical = 12.dp, horizontal = 14.dp),
+                        style = MaterialTheme.typography.titleSmall,
+                        color = InkRose
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+            KawaiiSecondaryButton(text = "Back to Landing", modifier = Modifier.fillMaxWidth()) {
+                onBackToLanding()
+            }
+        }
+    }
+}
+
+@Composable
+private fun AdminSectionTabs(
+    selectedSection: String,
+    onSectionSelected: (String) -> Unit,
+    onBackToLanding: () -> Unit
+) {
+    val sections = AdminSections
+    KawaiiCard(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier.padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            KawaiiSectionTitle(
+                title = "Admin Panel",
+                subtitle = "Responsive layout for portrait and landscape kiosks"
+            )
+            Row(
+                modifier = Modifier.horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                sections.forEach { section ->
+                    val isSelected = section == selectedSection
+                    Surface(
+                        shape = MaterialTheme.shapes.large,
+                        color = if (isSelected) CherryPink.copy(alpha = 0.18f) else Color.Transparent,
+                        border = androidx.compose.foundation.BorderStroke(1.dp, if (isSelected) CherryPink else LineRose)
+                    ) {
+                        Text(
+                            text = section,
+                            modifier = Modifier
+                                .clickable { onSectionSelected(section) }
+                                .padding(horizontal = 16.dp, vertical = 12.dp),
+                            style = MaterialTheme.typography.titleSmall,
+                            color = InkRose
+                        )
+                    }
+                }
+            }
+            KawaiiSecondaryButton(text = "Back to Landing", modifier = Modifier.fillMaxWidth()) {
+                onBackToLanding()
+            }
+        }
+    }
+}
+
+@Composable
+private fun LandscapeDashboardContent(summary: AdminDashboardSummary) {
+    DashboardHeader()
+    LandscapeMetricRow(metrics = summary.metrics)
+    Row(horizontalArrangement = Arrangement.spacedBy(20.dp), modifier = Modifier.fillMaxWidth()) {
+        TrendCard(points = summary.sessionsTrend, modifier = Modifier.weight(1.35f))
+        RankingCard(
+            title = "Top Templates",
+            items = summary.topTemplates,
+            accent = SoftLavender,
+            modifier = Modifier.weight(1f)
+        )
+    }
+    Row(horizontalArrangement = Arrangement.spacedBy(20.dp), modifier = Modifier.fillMaxWidth()) {
+        RankingCard(
+            title = "Most Used Stickers",
+            items = summary.topStickers,
+            accent = MintFoam,
+            modifier = Modifier.weight(1f)
+        )
+        StatusCard(statuses = summary.statuses, modifier = Modifier.weight(1f))
+    }
+    Row(horizontalArrangement = Arrangement.spacedBy(20.dp), modifier = Modifier.fillMaxWidth()) {
+        MiniModuleCard(
+            title = "Templates Manager",
+            subtitle = "Import, duplicate, version, and enable template assets.",
+            primary = "Import Template",
+            secondary = "Open Library",
+            modifier = Modifier.weight(1f)
+        )
+        MiniModuleCard(
+            title = "Camera & Printer",
+            subtitle = "Local hardware controls, presets, and test actions.",
+            primary = "Detect Devices",
+            secondary = "Open Settings",
+            modifier = Modifier.weight(1f)
+        )
+    }
+}
+
+@Composable
+private fun PortraitDashboardContent(summary: AdminDashboardSummary) {
+    DashboardHeader()
+    PortraitMetricGrid(metrics = summary.metrics)
+    TrendCard(points = summary.sessionsTrend, modifier = Modifier.fillMaxWidth())
+    RankingCard(
+        title = "Top Templates",
+        items = summary.topTemplates,
+        accent = SoftLavender,
+        modifier = Modifier.fillMaxWidth()
+    )
+    RankingCard(
+        title = "Most Used Stickers",
+        items = summary.topStickers,
+        accent = MintFoam,
+        modifier = Modifier.fillMaxWidth()
+    )
+    StatusCard(statuses = summary.statuses, modifier = Modifier.fillMaxWidth())
+    MiniModuleCard(
+        title = "Templates Manager",
+        subtitle = "Import, duplicate, version, and enable template assets.",
+        primary = "Import Template",
+        secondary = "Open Library",
+        modifier = Modifier.fillMaxWidth()
+    )
+    MiniModuleCard(
+        title = "Camera & Printer",
+        subtitle = "Local hardware controls, presets, and test actions.",
+        primary = "Detect Devices",
+        secondary = "Open Settings",
+        modifier = Modifier.fillMaxWidth()
+    )
+}
+
+@Composable
+private fun DashboardHeader() {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column {
+            Text(text = "Dashboard", style = MaterialTheme.typography.headlineLarge, color = InkRose)
+            Text(text = "Today", style = MaterialTheme.typography.bodyMedium, color = SoftText)
+        }
+        KawaiiPill(text = "Local-only mode", accent = SoftLavender)
+    }
+}
+
+@Composable
+private fun LandscapeMetricRow(metrics: List<com.zcamstudio.kawaiipb.domain.model.DashboardMetric>) {
+    Row(horizontalArrangement = Arrangement.spacedBy(16.dp), modifier = Modifier.fillMaxWidth()) {
+        metrics.forEach { metric ->
+            MetricCard(metric = metric, modifier = Modifier.weight(1f))
+        }
+    }
+}
+
+@Composable
+private fun PortraitMetricGrid(metrics: List<com.zcamstudio.kawaiipb.domain.model.DashboardMetric>) {
+    Column(verticalArrangement = Arrangement.spacedBy(16.dp), modifier = Modifier.fillMaxWidth()) {
+        metrics.chunked(2).forEach { rowItems ->
+            Row(horizontalArrangement = Arrangement.spacedBy(16.dp), modifier = Modifier.fillMaxWidth()) {
+                rowItems.forEach { metric ->
+                    MetricCard(metric = metric, modifier = Modifier.weight(1f))
+                }
+                if (rowItems.size == 1) {
+                    Spacer(modifier = Modifier.weight(1f))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun MetricCard(metric: com.zcamstudio.kawaiipb.domain.model.DashboardMetric, modifier: Modifier = Modifier) {
+    KawaiiCard(modifier = modifier) {
+        Column(modifier = Modifier.padding(20.dp)) {
+            Text(text = metric.label, style = MaterialTheme.typography.bodyMedium, color = SoftText)
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(text = metric.value, style = MaterialTheme.typography.headlineMedium, color = InkRose)
+            Spacer(modifier = Modifier.height(6.dp))
+            Text(text = metric.delta, style = MaterialTheme.typography.labelLarge, color = SoftText)
+        }
+    }
+}
+
+@Composable
+private fun TrendCard(points: List<ChartPoint>, modifier: Modifier = Modifier) {
+    KawaiiCard(modifier = modifier) {
+        Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            KawaiiSectionTitle(title = "Sessions Overview", subtitle = "Sample daily trend from local analytics")
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(220.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalAlignment = Alignment.Bottom
+            ) {
+                val max = points.maxOfOrNull { it.value }?.coerceAtLeast(1) ?: 1
+                points.forEach { point ->
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Bottom
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(((point.value / max.toFloat()) * 150f).dp)
+                                .clip(MaterialTheme.shapes.medium)
+                                .background(
+                                    Brush.verticalGradient(
+                                        colors = listOf(CherryPink, SoftLavender)
+                                    )
+                                )
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(text = point.label, style = MaterialTheme.typography.labelLarge, color = SoftText)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun RankingCard(
+    title: String,
+    items: List<RankedItem>,
+    accent: Color,
+    modifier: Modifier = Modifier
+) {
+    KawaiiCard(modifier = modifier) {
+        Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            KawaiiSectionTitle(title = title, subtitle = "Ranked from local usage data")
+            items.forEach { item ->
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text(text = item.label, style = MaterialTheme.typography.bodyMedium, color = InkRose)
+                        Text(text = "${item.percentage}%", style = MaterialTheme.typography.labelLarge, color = SoftText)
+                    }
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(12.dp)
+                            .clip(MaterialTheme.shapes.large)
+                            .background(WarmCream)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth(fraction = item.percentage / 100f)
+                                .fillMaxSize()
+                                .background(Brush.horizontalGradient(listOf(accent, CherryPink)))
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun StatusCard(statuses: List<StatusBadge>, modifier: Modifier = Modifier) {
+    KawaiiCard(modifier = modifier) {
+        Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            KawaiiSectionTitle(title = "System Status", subtitle = "Hardware and storage health")
+            statuses.forEach { status ->
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column {
+                        Text(text = status.label, style = MaterialTheme.typography.bodyLarge, color = InkRose)
+                        Text(text = status.details, style = MaterialTheme.typography.bodyMedium, color = SoftText)
+                    }
+                    Surface(
+                        shape = CircleShape,
+                        color = if (status.isHealthy) MintFoam else MaterialTheme.colorScheme.errorContainer
+                    ) {
+                        Text(
+                            text = if (status.isHealthy) "OK" else "Alert",
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                            style = MaterialTheme.typography.labelLarge,
+                            color = InkRose
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun MiniModuleCard(
+    title: String,
+    subtitle: String,
+    primary: String,
+    secondary: String,
+    modifier: Modifier = Modifier
+) {
+    KawaiiCard(modifier = modifier) {
+        Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            KawaiiSectionTitle(title = title, subtitle = subtitle)
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                KawaiiPrimaryButton(text = primary, modifier = Modifier.weight(1f)) {}
+                KawaiiSecondaryButton(text = secondary, modifier = Modifier.weight(1f)) {}
+            }
+        }
+    }
+}

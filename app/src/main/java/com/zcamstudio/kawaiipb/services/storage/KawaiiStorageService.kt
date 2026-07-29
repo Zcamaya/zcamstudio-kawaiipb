@@ -3,8 +3,9 @@ package com.zcamstudio.kawaiipb.services.storage
 import android.content.Context
 import android.os.Environment
 import java.io.File
+import java.io.InputStream
 
-class KawaiiStorageService(context: Context) {
+class KawaiiStorageService(private val context: Context) {
     private val externalBaseDir: File? = context.getExternalFilesDir(null)
     private val externalPicturesDir: File? = context.getExternalFilesDir(Environment.DIRECTORY_PICTURES)
     private val externalDocumentsDir: File? = context.getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS)
@@ -36,6 +37,14 @@ class KawaiiStorageService(context: Context) {
     fun printPdfFile(sessionId: String): File {
         ensureDirectory(stripsDir)
         return File(stripsDir, "$sessionId-print.pdf")
+    }
+
+    fun openAsset(assetPath: String): InputStream? {
+        return try {
+            context.assets.open(assetPath)
+        } catch (_: Exception) {
+            null
+        }
     }
 
     fun templateDirectory(stripSize: String): File {

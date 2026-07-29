@@ -1,6 +1,7 @@
 package com.zcamstudio.kawaiipb.feature.printing
 
 import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.graphics.Canvas
 import android.graphics.Color as AndroidColor
 import android.graphics.Paint
@@ -9,6 +10,8 @@ import com.zcamstudio.kawaiipb.domain.model.CaptureFrame
 import com.zcamstudio.kawaiipb.domain.model.StripLayout
 import com.zcamstudio.kawaiipb.domain.model.StripSize
 import com.zcamstudio.kawaiipb.feature.flow.presentation.FlowUiState
+import com.zcamstudio.kawaiipb.feature.flow.presentation.resolveLayoutAssetPath
+import com.zcamstudio.kawaiipb.feature.flow.presentation.resolveTemplateOverlayAssetPath
 import com.zcamstudio.kawaiipb.services.storage.KawaiiStorageService
 import kotlin.math.min
 
@@ -68,19 +71,19 @@ object PrintComposer {
     }
 
     fun renderPrintSheet(uiState: FlowUiState, storageService: KawaiiStorageService) {
-        val bitmap = Bitmap.createBitmap(PrintConstants.PRINT_WIDTH, PrintConstants.PRINT_HEIGHT, Bitmap.Config.ARGB_8888)
-        val canvas = Canvas(bitmap)
-
-        drawSheetBackground(canvas)
-        drawSheetFrame(canvas)
-
         val assignedFrames = uiState.photoAssignmentAssignments.map { index ->
             index?.let { uiState.capturedFrames.getOrNull(it) }
         }
 
         if (uiState.stripLayout != null) {
-            renderLayout(canvas, uiState.stripLayout, assignedFrames)
+            renderLayoutExact(uiState.stripLayout, assignedFrames, uiState, storageService)
         } else {
+            val bitmap = Bitmap.createBitmap(PrintConstants.PRINT_WIDTH, PrintConstants.PRINT_HEIGHT, Bitmap.Config.ARGB_8888)
+            val canvas = Canvas(bitmap)
+
+            drawSheetBackground(canvas)
+            drawSheetFrame(canvas)
+
             val leftStripBounds = RectF(
                 PrintConstants.STRIP_LEFT.toFloat(),
                 PrintConstants.STRIP_TOP.toFloat(),
@@ -99,20 +102,24 @@ object PrintComposer {
                 canvas,
                 leftStripBounds,
                 uiState.stripSize,
-                assignedFrames.take(uiState.stripSize.frameCount)
+                assignedFrames.take(uiState.stripSize.frameCount),
+                uiState,
+                storageService
             )
             renderStrip(
                 canvas,
                 rightStripBounds,
                 uiState.stripSize,
-                assignedFrames.drop(uiState.stripSize.frameCount)
+                assignedFrames.drop(uiState.stripSize.frameCount),
+                uiState,
+                storageService
             )
+
+            renderSheetHeader(canvas)
+            renderSheetFooter(canvas)
+
+            savePrintFile(storageService, uiState.sessionId, bitmap)
         }
-
-        renderSheetHeader(canvas)
-        renderSheetFooter(canvas)
-
-        savePrintFile(storageService, uiState.sessionId, bitmap)
     }
 
     private fun drawSheetBackground(canvas: Canvas) {
@@ -132,7 +139,14 @@ object PrintComposer {
         )
     }
 
-    private fun renderStrip(canvas: Canvas, stripBounds: RectF, stripSize: StripSize, frames: List<CaptureFrame?>) {
+    private fun renderStrip(
+        canvas: Canvas,
+        stripBounds: RectF,
+        stripSize: StripSize,
+        frames: List<CaptureFrame?>,
+        uiState: FlowUiState,
+        storageService: KawaiiStorageService
+    ) {
         canvas.drawRoundRect(stripBounds, 32f, 32f, stripPaint)
         canvas.drawRoundRect(stripBounds, 32f, 32f, borderPaint)
 
@@ -142,7 +156,7 @@ object PrintComposer {
             val frame = frames.getOrNull(index)
             val photoBitmap = frame?.imagePath?.let { loadPreparedPhoto(it, slotRect.width().toInt(), slotRect.height().toInt()) }
             if (photoBitmap != null) {
-                canvas.drawBitmap(photoBitmap, slotRect.left, slotRect.top, null)
+                canvas.drawBitmap(photoBitmap, null, slotRect, null)
             } else {
                 canvas.drawRoundRect(slotRect, PrintConstants.SLOT_BORDER_RADIUS, PrintConstants.SLOT_BORDER_RADIUS, placeholderPaint)
             }
@@ -154,32 +168,59 @@ object PrintComposer {
         canvas.drawRoundRect(slotRect, PrintConstants.SLOT_BORDER_RADIUS, PrintConstants.SLOT_BORDER_RADIUS, slotBorderPaint)
     }
 
-    private fun renderLayout(canvas: Canvas, layout: StripLayout, frames: List<CaptureFrame?>) {
-        val pageBounds = RectF(80f, 80f, PrintConstants.PRINT_WIDTH - 80f, PrintConstants.PRINT_HEIGHT - 80f)
-        val scale = min(pageBounds.width() / layout.canvasWidth, pageBounds.height() / layout.canvasHeight)
-        val contentLeft = pageBounds.left + (pageBounds.width() - layout.canvasWidth * scale) / 2f
-        val contentTop = pageBounds.top + (pageBounds.height() - layout.canvasHeight * scale) / 2f
+    private fun renderLayoutExact(
+        layout: StripLayout,
+        frames: List<CaptureFrame?>,
+        uiState: FlowUiState,
+        storageService: KawaiiStorageService
+    ) {
+        val scale = 3.0f
+        val outputWidth = (layout.canvasWidth * scale).toInt()
+        val outputHeight = (layout.canvasHeight * scale).toInt()
 
-        canvas.drawRoundRect(pageBounds, 32f, 32f, stripPaint)
-        canvas.drawRoundRect(pageBounds, 32f, 32f, borderPaint)
+        val bitmap = Bitmap.createBitmap(outputWidth, outputHeight, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(bitmap)
+
+        canvas.drawColor(AndroidColor.WHITE)
+
+        val baseAssetPath = resolveLayoutAssetPath(layout)
+        val baseBitmap = baseAssetPath?.let { storageService.openAsset(it) }?.use { stream ->
+            BitmapFactory.decodeStream(stream)
+        }
+        if (baseBitmap != null) {
+            val destRect = RectF(0f, 0f, outputWidth.toFloat(), outputHeight.toFloat())
+            canvas.drawBitmap(baseBitmap, null, destRect, null)
+        }
 
         layout.photoSlots.forEachIndexed { index, slot ->
             if (!slot.visible) return@forEachIndexed
 
             val slotRect = RectF(
-                contentLeft + slot.x * scale,
-                contentTop + slot.y * scale,
-                contentLeft + (slot.x + slot.width) * scale,
-                contentTop + (slot.y + slot.height) * scale
+                slot.x * scale,
+                slot.y * scale,
+                (slot.x + slot.width) * scale,
+                (slot.y + slot.height) * scale
             )
 
-            drawSlotFrame(canvas, slotRect)
             val frame = frames.getOrNull(index)
-            val photoBitmap = frame?.imagePath?.let { loadPreparedPhoto(it, slotRect.width().toInt(), slotRect.height().toInt()) }
+            val photoBitmap = frame?.imagePath?.let { 
+                loadPreparedPhoto(it, slotRect.width().toInt(), slotRect.height().toInt()) 
+            }
             if (photoBitmap != null) {
-                canvas.drawBitmap(photoBitmap, slotRect.left, slotRect.top, null)
+                canvas.drawBitmap(photoBitmap, null, slotRect, null)
             }
         }
+
+        val overlayAssetPath = resolveTemplateOverlayAssetPath(uiState.selectedTemplate?.id)
+        val overlayBitmap = overlayAssetPath?.let { storageService.openAsset(it) }?.use { stream ->
+            BitmapFactory.decodeStream(stream)
+        }
+        if (overlayBitmap != null) {
+            val destRect = RectF(0f, 0f, outputWidth.toFloat(), outputHeight.toFloat())
+            canvas.drawBitmap(overlayBitmap, null, destRect, null)
+        }
+
+        savePrintFile(storageService, uiState.sessionId, bitmap)
     }
 
     private fun renderSheetHeader(canvas: Canvas) {

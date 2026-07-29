@@ -1,5 +1,7 @@
 # KawaiiPB
 
+[![Android CI](https://github.com/Zcamaya/zcamstudio-kawaii-pb/actions/workflows/android.yml/badge.svg)](https://github.com/Zcamaya/zcamstudio-kawaii-pb/actions/workflows/android.yml)
+
 KawaiiPB is an Android kiosk-style app built with Kotlin and Jetpack Compose. It includes a landing screen, camera/photo workflow, drawing/sticker assignment, and an admin dashboard.
 
 ## Key Features
@@ -42,6 +44,13 @@ To install the debug build on a connected device/emulator:
 ```powershell
 .\gradlew.bat :app:installDebug
 ```
+
+## Continuous Integration
+
+This repository includes a GitHub Actions workflow at `.github/workflows/android.yml`.
+
+- Builds the `app` module with `assembleDebug`
+- Runs `:app:testDebugUnitTest`
 
 ## Tests
 

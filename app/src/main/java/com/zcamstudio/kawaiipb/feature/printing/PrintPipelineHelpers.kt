@@ -6,9 +6,16 @@ import android.graphics.BitmapFactory
 import android.graphics.Matrix
 import android.graphics.pdf.PdfDocument
 import android.media.ExifInterface
+import android.util.LruCache
 import com.zcamstudio.kawaiipb.domain.model.CaptureFrame
 import com.zcamstudio.kawaiipb.services.storage.KawaiiStorageService
 import kotlin.math.min
+
+private const val PreparedPhotoCacheSizeKb = 16 * 1024
+
+private val preparedPhotoCache = object : LruCache<String, Bitmap>(PreparedPhotoCacheSizeKb) {
+    override fun sizeOf(key: String, value: Bitmap): Int = value.byteCount / 1024
+}
 
 internal fun computePhotoSlots(stripBounds: android.graphics.RectF, photoCount: Int): List<android.graphics.RectF> {
     if (photoCount <= 0) return emptyList()
@@ -35,9 +42,18 @@ internal fun computePhotoSlots(stripBounds: android.graphics.RectF, photoCount: 
 }
 
 internal fun loadPreparedPhoto(path: String, width: Int, height: Int): Bitmap? {
+    val cacheKey = "$path|$width|$height"
+    preparedPhotoCache.get(cacheKey)?.let { return it }
+
     val original = loadBitmapWithOrientation(path) ?: return null
-    val cropped = cropCenterToAspect(original, PrintConstants.PHOTO_ASPECT_RATIO)
-    return Bitmap.createScaledBitmap(cropped, width, height, true)
+    val targetWidth = width.coerceAtLeast(1)
+    val targetHeight = height.coerceAtLeast(1)
+    val scale = min(targetWidth.toFloat() / original.width.toFloat(), targetHeight.toFloat() / original.height.toFloat())
+    val scaledWidth = (original.width * scale).toInt().coerceAtLeast(1)
+    val scaledHeight = (original.height * scale).toInt().coerceAtLeast(1)
+    return Bitmap.createScaledBitmap(original, scaledWidth, scaledHeight, true).also {
+        preparedPhotoCache.put(cacheKey, it)
+    }
 }
 
 internal fun loadBitmapWithOrientation(path: String): Bitmap? {
@@ -54,25 +70,6 @@ internal fun loadBitmapWithOrientation(path: String): Bitmap? {
         if (rotation == 0f) bitmap else Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, Matrix().apply { postRotate(rotation) }, true)
     } catch (exception: Exception) {
         bitmap
-    }
-}
-
-internal fun cropCenterToAspect(bitmap: Bitmap, targetAspect: Float): Bitmap {
-    val width = bitmap.width
-    val height = bitmap.height
-    val currentAspect = width.toFloat() / height.toFloat()
-    return when {
-        currentAspect > targetAspect -> {
-            val cropWidth = (height * targetAspect).toInt()
-            val left = (width - cropWidth) / 2
-            Bitmap.createBitmap(bitmap, left, 0, cropWidth, height)
-        }
-        currentAspect < targetAspect -> {
-            val cropHeight = (width / targetAspect).toInt()
-            val top = (height - cropHeight) / 2
-            Bitmap.createBitmap(bitmap, 0, top, width, cropHeight)
-        }
-        else -> bitmap
     }
 }
 

@@ -5,6 +5,7 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Matrix
 import android.media.ExifInterface
+import android.util.LruCache
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import com.zcamstudio.kawaiipb.domain.model.KioskFlowStage
@@ -15,6 +16,17 @@ import com.zcamstudio.kawaiipb.domain.model.TemplateOption
 import com.zcamstudio.kawaiipb.domain.model.TemplatePhotoSlot
 import org.json.JSONArray
 import org.json.JSONObject
+
+private const val AssetImageCacheSize = 16
+private const val CapturePhotoCacheSize = 24
+
+private val assetImageCache = object : LruCache<String, ImageBitmap>(AssetImageCacheSize) {
+    override fun sizeOf(key: String, value: ImageBitmap): Int = 1
+}
+
+private val capturePhotoCache = object : LruCache<String, ImageBitmap>(CapturePhotoCacheSize) {
+    override fun sizeOf(key: String, value: ImageBitmap): Int = 1
+}
 
 fun stageDuration(stage: KioskFlowStage): Int = when (stage) {
     KioskFlowStage.CameraMode -> 20
@@ -53,6 +65,43 @@ fun flowStageSubtitle(stage: KioskFlowStage): String = when (stage) {
     KioskFlowStage.Preview -> "Check the final composition."
     KioskFlowStage.Printing -> "The local printer queue is working."
     KioskFlowStage.Qr -> "Scan to download before the session expires."
+}
+
+fun advanceFlowStateForTick(
+    state: FlowUiState,
+    newSessionSeconds: Int,
+    nextPrintProgress: Float,
+    nextQrExpiry: Int
+): FlowUiState {
+    val nextState = state.copy(
+        sessionSecondsLeft = newSessionSeconds,
+        printProgress = nextPrintProgress,
+        qrExpirySeconds = nextQrExpiry,
+        captureShotCountdown = if (state.stage == KioskFlowStage.Capture && state.isCaptureCountdownActive && state.capturedFrames.size < 8 && !state.isCaptureInProgress) {
+            if (state.captureShotCountdown > 1) state.captureShotCountdown - 1 else 0
+        } else state.captureShotCountdown,
+        isCaptureCountdownActive = state.isCaptureCountdownActive && state.captureShotCountdown > 1
+    )
+
+    val stageSecondsLeft = (nextState.stageSecondsLeft - 1).coerceAtLeast(0)
+    val advancedState = nextState.copy(stageSecondsLeft = stageSecondsLeft)
+
+    return if (stageSecondsLeft == 0) {
+        when (advancedState.stage) {
+            KioskFlowStage.CameraMode -> advancedState.copy(stage = KioskFlowStage.Capture, stageSecondsLeft = stageDuration(KioskFlowStage.Capture), captureShotCountdown = 0, isCaptureCountdownActive = false, summaryMessage = "Capture session ready")
+            KioskFlowStage.Capture -> advancedState.copy(stage = KioskFlowStage.StripSize, stageSecondsLeft = stageDuration(KioskFlowStage.StripSize), captureShotCountdown = 0, isCaptureCountdownActive = false, isCaptureInProgress = false, summaryMessage = "Time expired, choose strip size")
+            KioskFlowStage.PhotoAssignment -> advancedState.copy(stage = KioskFlowStage.TemplateGallery, stageSecondsLeft = stageDuration(KioskFlowStage.TemplateGallery), summaryMessage = "Time expired, choose a template")
+            KioskFlowStage.StripSize -> advancedState.copy(stage = KioskFlowStage.PhotoAssignment, stageSecondsLeft = stageDuration(KioskFlowStage.PhotoAssignment), summaryMessage = "Time expired, assign photos")
+            KioskFlowStage.TemplateGallery -> advancedState.copy(stage = KioskFlowStage.Drawing, stageSecondsLeft = stageDuration(KioskFlowStage.Drawing), summaryMessage = "Start drawing")
+            KioskFlowStage.Drawing -> advancedState.copy(stage = KioskFlowStage.Stickers, stageSecondsLeft = stageDuration(KioskFlowStage.Stickers), summaryMessage = "Add stickers")
+            KioskFlowStage.Stickers -> advancedState.copy(stage = KioskFlowStage.Preview, stageSecondsLeft = stageDuration(KioskFlowStage.Preview), summaryMessage = "Preview ready")
+            KioskFlowStage.Preview -> advancedState.copy(stage = KioskFlowStage.Printing, stageSecondsLeft = stageDuration(KioskFlowStage.Printing), summaryMessage = "Printing started", printProgress = 0f)
+            KioskFlowStage.Printing -> advancedState.copy(stage = KioskFlowStage.Qr, stageSecondsLeft = stageDuration(KioskFlowStage.Qr), printProgress = 1f, printStatus = "Print complete", summaryMessage = "Scan QR to download")
+            KioskFlowStage.Qr -> advancedState
+        }
+    } else {
+        advancedState
+    }
 }
 
 fun loadStripLayoutFromAssets(context: Context, assetPath: String): StripLayout? {
@@ -126,9 +175,12 @@ fun resolveTemplateOverlayAssetPath(templateId: String?): String? {
 }
 
 fun loadAssetImage(context: Context, assetPath: String): ImageBitmap? {
+    if (assetPath.isBlank()) return null
+    assetImageCache.get(assetPath)?.let { return it }
+
     return try {
         context.assets.open(assetPath).use { stream ->
-            BitmapFactory.decodeStream(stream)?.asImageBitmap()
+            BitmapFactory.decodeStream(stream)?.asImageBitmap()?.also { assetImageCache.put(assetPath, it) }
         }
     } catch (ex: Exception) {
         null
@@ -136,18 +188,13 @@ fun loadAssetImage(context: Context, assetPath: String): ImageBitmap? {
 }
 
 fun loadTemplateOverlay(context: Context, template: TemplateOption): ImageBitmap? {
-    return try {
-        val assetPath = "templates/${template.id}.png"
-        context.assets.open(assetPath).use { stream ->
-            BitmapFactory.decodeStream(stream)?.asImageBitmap()
-        }
-    } catch (ex: Exception) {
-        null
-    }
+    return loadAssetImage(context, "templates/${template.id}.png")
 }
 
 fun loadCapturePhoto(imagePath: String?): ImageBitmap? {
     if (imagePath == null) return null
+    capturePhotoCache.get(imagePath)?.let { return it }
+
     return try {
         val bitmap = BitmapFactory.decodeFile(imagePath) ?: return null
 
@@ -163,12 +210,15 @@ fun loadCapturePhoto(imagePath: String?): ImageBitmap? {
         }.getOrDefault(0f)
 
         if (rotation == 0f) {
-            bitmap.asImageBitmap()
+            bitmap.asImageBitmap().also { capturePhotoCache.put(imagePath, it) }
         } else {
             val matrix = Matrix().apply { postRotate(rotation) }
             Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true).asImageBitmap()
+                .also { capturePhotoCache.put(imagePath, it) }
         }
     } catch (ex: Exception) {
-        runCatching { BitmapFactory.decodeFile(imagePath)?.asImageBitmap() }.getOrNull()
+        runCatching {
+            BitmapFactory.decodeFile(imagePath)?.asImageBitmap()?.also { capturePhotoCache.put(imagePath, it) }
+        }.getOrNull()
     }
 }

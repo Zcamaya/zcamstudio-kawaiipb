@@ -30,8 +30,6 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
-private const val PhotoAssignmentInitialScale = 1.1f
-
 class FlowViewModel(
     private val sessionId: String,
     private val getKioskSessionCatalogUseCase: GetKioskSessionCatalogUseCase,
@@ -168,7 +166,7 @@ class FlowViewModel(
     }
 
     fun continueFromPhotoAssignment() {
-        beginPrinting()
+        setStage(KioskFlowStage.Preview, "Review the final strip")
     }
 
     fun selectAssignedFrame(slotIndex: Int) {
@@ -531,36 +529,6 @@ class FlowViewModel(
         _uiState.update(transform)
     }
 
-    private fun updatePhotoAssignmentState(
-        state: FlowUiState,
-        assignments: List<Int?>,
-        transforms: List<PhotoTransform>,
-        selectedSlot: Int?,
-        showCapturedList: Boolean,
-        summaryMessage: String
-    ): FlowUiState {
-        return state.copy(
-            photoAssignmentAssignments = assignments,
-            photoAssignmentTransforms = transforms,
-            photoAssignmentSelectedSlot = selectedSlot,
-            photoAssignmentShowCapturedList = showCapturedList,
-            summaryMessage = summaryMessage
-        )
-    }
-
-    private fun updateStickers(
-        state: FlowUiState,
-        stickers: List<PlacedSticker>,
-        selectedStickerId: String? = null,
-        summaryMessage: String? = null
-    ): FlowUiState {
-        return state.copy(
-            placedStickers = stickers,
-            selectedStickerId = selectedStickerId ?: state.selectedStickerId,
-            summaryMessage = summaryMessage ?: state.summaryMessage
-        )
-    }
-
     private fun startTicker() {
         if (tickerJob != null) return
         tickerJob = viewModelScope.launch {
@@ -581,38 +549,15 @@ class FlowViewModel(
             } else state.printProgress
             val nextQrExpiry = if (state.stage == KioskFlowStage.Qr) (state.qrExpirySeconds - 1).coerceAtLeast(0) else state.qrExpirySeconds
 
-            val afterCaptureCountdown = if (state.stage == KioskFlowStage.Capture && state.isCaptureCountdownActive && state.capturedFrames.size < 8 && !state.isCaptureInProgress) {
-                if (state.captureShotCountdown > 1) state.captureShotCountdown - 1 else 0
-            } else state.captureShotCountdown
-
-            var nextState = state.copy(
-                sessionSecondsLeft = newSessionSeconds,
-                printProgress = nextPrintProgress,
-                qrExpirySeconds = nextQrExpiry,
-                captureShotCountdown = afterCaptureCountdown,
-                isCaptureCountdownActive = state.isCaptureCountdownActive && afterCaptureCountdown > 0
+            var nextState = advanceFlowStateForTick(
+                state = state,
+                newSessionSeconds = newSessionSeconds,
+                nextPrintProgress = nextPrintProgress,
+                nextQrExpiry = nextQrExpiry
             )
 
             if (state.stage == KioskFlowStage.Capture && state.isCaptureCountdownActive && state.capturedFrames.size < 8 && state.captureShotCountdown <= 1 && !state.isCaptureInProgress) {
                 viewModelScope.launch { triggerCapture() }
-            }
-
-            val stageSecondsLeft = (nextState.stageSecondsLeft - 1).coerceAtLeast(0)
-            nextState = nextState.copy(stageSecondsLeft = stageSecondsLeft)
-
-            if (stageSecondsLeft == 0) {
-                nextState = when (nextState.stage) {
-                    KioskFlowStage.CameraMode -> nextState.copy(stage = KioskFlowStage.Capture, stageSecondsLeft = stageDuration(KioskFlowStage.Capture), captureShotCountdown = 0, isCaptureCountdownActive = false, summaryMessage = "Capture session ready")
-                    KioskFlowStage.Capture -> nextState.copy(stage = KioskFlowStage.StripSize, stageSecondsLeft = stageDuration(KioskFlowStage.StripSize), captureShotCountdown = 0, isCaptureCountdownActive = false, isCaptureInProgress = false, summaryMessage = "Time expired, choose strip size")
-                    KioskFlowStage.PhotoAssignment -> nextState.copy(stage = KioskFlowStage.TemplateGallery, stageSecondsLeft = stageDuration(KioskFlowStage.TemplateGallery), summaryMessage = "Time expired, choose a template")
-                    KioskFlowStage.StripSize -> nextState.copy(stage = KioskFlowStage.PhotoAssignment, stageSecondsLeft = stageDuration(KioskFlowStage.PhotoAssignment), summaryMessage = "Time expired, assign photos")
-                    KioskFlowStage.TemplateGallery -> nextState.copy(stage = KioskFlowStage.Drawing, stageSecondsLeft = stageDuration(KioskFlowStage.Drawing), summaryMessage = "Start drawing")
-                    KioskFlowStage.Drawing -> nextState.copy(stage = KioskFlowStage.Stickers, stageSecondsLeft = stageDuration(KioskFlowStage.Stickers), summaryMessage = "Add stickers")
-                    KioskFlowStage.Stickers -> nextState.copy(stage = KioskFlowStage.Preview, stageSecondsLeft = stageDuration(KioskFlowStage.Preview), summaryMessage = "Preview ready")
-                    KioskFlowStage.Preview -> nextState.copy(stage = KioskFlowStage.Printing, stageSecondsLeft = stageDuration(KioskFlowStage.Printing), summaryMessage = "Printing started", printProgress = 0f)
-                    KioskFlowStage.Printing -> nextState.copy(stage = KioskFlowStage.Qr, stageSecondsLeft = stageDuration(KioskFlowStage.Qr), printProgress = 1f, printStatus = "Print complete", summaryMessage = "Scan QR to download")
-                    KioskFlowStage.Qr -> if (nextQrExpiry == 0) nextState else nextState
-                }
             }
 
             if (nextState.stage == KioskFlowStage.Qr && nextState.qrExpirySeconds == 0) {
@@ -654,10 +599,4 @@ class FlowViewModel(
         }
     }
 
-    private fun defaultLensForCameraMode(mode: CameraMode): CameraLens {
-        return when (mode) {
-            CameraMode.Classic -> CameraLens.Front
-            CameraMode.Elevator -> CameraLens.Rear
-        }
-    }
 }

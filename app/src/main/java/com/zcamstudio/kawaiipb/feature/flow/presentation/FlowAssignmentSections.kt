@@ -53,6 +53,7 @@ import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.layout.offset
+import kotlin.math.max
 import com.zcamstudio.kawaiipb.core.designsystem.CherryPink
 import com.zcamstudio.kawaiipb.core.designsystem.CloudWhite
 import com.zcamstudio.kawaiipb.core.designsystem.InkRose
@@ -284,12 +285,18 @@ internal fun FlowAssignmentLayoutPreview(
                     contentAlignment = Alignment.Center
                 ) {
                     if (imageBitmap != null) {
+                        val imageWidth = imageBitmap.width.toFloat()
+                        val imageHeight = imageBitmap.height.toFloat()
+                        val fillScale = max(slotWidth.value / imageWidth, slotHeight.value / imageHeight)
+                        val imageDisplayWidth = (imageWidth * fillScale).dp
+                        val imageDisplayHeight = (imageHeight * fillScale).dp
+
                         Image(
                             bitmap = imageBitmap,
                             contentDescription = frame?.label,
                             contentScale = ContentScale.Fit,
                             modifier = Modifier
-                                .fillMaxSize()
+                                .size(width = imageDisplayWidth, height = imageDisplayHeight)
                                 .offset(x = transform.offsetX.dp, y = transform.offsetY.dp)
                                 .graphicsLayer(scaleX = transform.scale, scaleY = transform.scale)
                         )

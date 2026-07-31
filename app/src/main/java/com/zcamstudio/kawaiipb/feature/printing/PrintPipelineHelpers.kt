@@ -73,16 +73,21 @@ internal fun loadBitmapWithOrientation(path: String): Bitmap? {
     }
 }
 
-internal fun savePrintFile(storageService: KawaiiStorageService, sessionId: String, bitmap: Bitmap) {
-    val outputFile = storageService.printPdfFile(sessionId)
+internal fun savePrintFile(storageService: KawaiiStorageService, sessionId: String, bitmap: Bitmap): Boolean {
     val document = PdfDocument()
-    val pageInfo = PdfDocument.PageInfo.Builder(bitmap.width, bitmap.height, 1).create()
-    val page = document.startPage(pageInfo)
-    page.canvas.drawBitmap(bitmap, 0f, 0f, null)
-    document.finishPage(page)
+    return try {
+        val pageInfo = PdfDocument.PageInfo.Builder(bitmap.width, bitmap.height, 1).create()
+        val page = document.startPage(pageInfo)
+        page.canvas.drawBitmap(bitmap, 0f, 0f, null)
+        document.finishPage(page)
 
-    outputFile.outputStream().use { stream ->
-        document.writeTo(stream)
+        storageService.publicPdfOutputStream(sessionId).use { stream ->
+            document.writeTo(stream)
+        }
+        true
+    } catch (exception: Exception) {
+        throw IllegalStateException("Unable to save PDF export: ${exception.message}", exception)
+    } finally {
+        document.close()
     }
-    document.close()
 }

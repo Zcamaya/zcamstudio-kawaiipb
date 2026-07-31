@@ -34,6 +34,7 @@ fun rememberKawaiiPbDependencies(): KawaiiPbDependencies {
     val context = LocalContext.current
     val repository = remember { InMemoryKioskRepository() }
     val storageService = remember(context) { KawaiiStorageService(context) }
+    storageService.initializePublicFolders()
     val sessionLogService = remember(storageService) { SessionLogService(storageService) }
     return remember(repository, storageService, sessionLogService) {
         KawaiiPbDependencies(

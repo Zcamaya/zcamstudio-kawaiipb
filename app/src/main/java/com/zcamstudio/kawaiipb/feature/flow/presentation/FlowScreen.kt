@@ -222,8 +222,7 @@ fun FlowScreen(
     ) {
         FlowTopHeader(
             title = stageTitle,
-            subtitle = stageSubtitle,
-            stageSecondsLeft = uiState.stageSecondsLeft
+            subtitle = stageSubtitle
         )
 
         if (uiState.stage == KioskFlowStage.Capture) {
@@ -256,19 +255,17 @@ fun FlowScreen(
 @Composable
 private fun FlowTopHeader(
     title: String,
-    subtitle: String,
-    stageSecondsLeft: Int
+    subtitle: String
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
+        horizontalArrangement = Arrangement.Start,
         verticalAlignment = Alignment.CenterVertically
     ) {
         Column {
             Text(text = title, style = MaterialTheme.typography.titleLarge, color = InkRose)
             Text(text = subtitle, style = MaterialTheme.typography.bodyMedium, color = SoftText)
         }
-        KawaiiPill(text = "${stageSecondsLeft}s", accent = SoftLavender)
     }
 }
 

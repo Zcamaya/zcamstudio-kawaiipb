@@ -37,7 +37,7 @@ fun stageDuration(stage: KioskFlowStage): Int = when (stage) {
     KioskFlowStage.Drawing -> 120
     KioskFlowStage.Stickers -> 60
     KioskFlowStage.Preview -> 25
-    KioskFlowStage.Printing -> 30
+    KioskFlowStage.Printing -> 0
     KioskFlowStage.Qr -> 300
 }
 
@@ -63,7 +63,7 @@ fun flowStageSubtitle(stage: KioskFlowStage): String = when (stage) {
     KioskFlowStage.Drawing -> "Draw with pen, brush, or eraser."
     KioskFlowStage.Stickers -> "Place, move, scale, and rotate stickers."
     KioskFlowStage.Preview -> "Check the final composition."
-    KioskFlowStage.Printing -> "The local printer queue is working."
+    KioskFlowStage.Printing -> "Save the rendered strip as a PDF."
     KioskFlowStage.Qr -> "Scan to download before the session expires."
 }
 
@@ -95,8 +95,8 @@ fun advanceFlowStateForTick(
             KioskFlowStage.TemplateGallery -> advancedState.copy(stage = KioskFlowStage.Drawing, stageSecondsLeft = stageDuration(KioskFlowStage.Drawing), summaryMessage = "Start drawing")
             KioskFlowStage.Drawing -> advancedState.copy(stage = KioskFlowStage.Stickers, stageSecondsLeft = stageDuration(KioskFlowStage.Stickers), summaryMessage = "Add stickers")
             KioskFlowStage.Stickers -> advancedState.copy(stage = KioskFlowStage.Preview, stageSecondsLeft = stageDuration(KioskFlowStage.Preview), summaryMessage = "Preview ready")
-            KioskFlowStage.Preview -> advancedState.copy(stage = KioskFlowStage.Printing, stageSecondsLeft = stageDuration(KioskFlowStage.Printing), summaryMessage = "Printing started", printProgress = 0f)
-            KioskFlowStage.Printing -> advancedState.copy(stage = KioskFlowStage.Qr, stageSecondsLeft = stageDuration(KioskFlowStage.Qr), printProgress = 1f, printStatus = "Print complete", summaryMessage = "Scan QR to download")
+            KioskFlowStage.Preview -> advancedState.copy(stage = KioskFlowStage.Printing, stageSecondsLeft = 0, summaryMessage = "Saving export", printProgress = 0f)
+            KioskFlowStage.Printing -> advancedState.copy(stage = KioskFlowStage.Printing, stageSecondsLeft = 0, printStatus = advancedState.printStatus, summaryMessage = advancedState.summaryMessage)
             KioskFlowStage.Qr -> advancedState
         }
     } else {

@@ -10,9 +10,11 @@ import com.zcamstudio.kawaiipb.domain.model.CaptureFrame
 import com.zcamstudio.kawaiipb.domain.model.StripLayout
 import com.zcamstudio.kawaiipb.domain.model.StripSize
 import com.zcamstudio.kawaiipb.feature.flow.presentation.FlowUiState
+import com.zcamstudio.kawaiipb.feature.flow.presentation.PhotoTransform
 import com.zcamstudio.kawaiipb.feature.flow.presentation.resolveLayoutAssetPath
 import com.zcamstudio.kawaiipb.feature.flow.presentation.resolveTemplateOverlayAssetPath
 import com.zcamstudio.kawaiipb.services.storage.KawaiiStorageService
+import kotlin.math.max
 import kotlin.math.min
 
 object PrintComposer {
@@ -70,12 +72,12 @@ object PrintComposer {
         textAlign = Paint.Align.CENTER
     }
 
-    fun renderPrintSheet(uiState: FlowUiState, storageService: KawaiiStorageService) {
+    fun renderPrintSheet(uiState: FlowUiState, storageService: KawaiiStorageService): Boolean {
         val assignedFrames = uiState.photoAssignmentAssignments.map { index ->
             index?.let { uiState.capturedFrames.getOrNull(it) }
         }
 
-        if (uiState.stripLayout != null) {
+        return if (uiState.stripLayout != null) {
             renderLayoutExact(uiState.stripLayout, assignedFrames, uiState, storageService)
         } else {
             val bitmap = Bitmap.createBitmap(PrintConstants.PRINT_WIDTH, PrintConstants.PRINT_HEIGHT, Bitmap.Config.ARGB_8888)
@@ -154,9 +156,10 @@ object PrintComposer {
         slotRects.forEachIndexed { index, slotRect ->
             drawSlotFrame(canvas, slotRect)
             val frame = frames.getOrNull(index)
-            val photoBitmap = frame?.imagePath?.let { loadPreparedPhoto(it, slotRect.width().toInt(), slotRect.height().toInt()) }
+            val photoBitmap = frame?.imagePath?.let { loadBitmapWithOrientation(it) }
             if (photoBitmap != null) {
-                canvas.drawBitmap(photoBitmap, null, slotRect, null)
+                val transform = uiState.photoAssignmentTransforms.getOrNull(index) ?: PhotoTransform()
+                drawPhotoBitmapFit(canvas, photoBitmap, slotRect, transform)
             } else {
                 canvas.drawRoundRect(slotRect, PrintConstants.SLOT_BORDER_RADIUS, PrintConstants.SLOT_BORDER_RADIUS, placeholderPaint)
             }
@@ -173,7 +176,7 @@ object PrintComposer {
         frames: List<CaptureFrame?>,
         uiState: FlowUiState,
         storageService: KawaiiStorageService
-    ) {
+    ): Boolean {
         val scale = 3.0f
         val outputWidth = (layout.canvasWidth * scale).toInt()
         val outputHeight = (layout.canvasHeight * scale).toInt()
@@ -203,11 +206,10 @@ object PrintComposer {
             )
 
             val frame = frames.getOrNull(index)
-            val photoBitmap = frame?.imagePath?.let { 
-                loadPreparedPhoto(it, slotRect.width().toInt(), slotRect.height().toInt()) 
-            }
+            val photoBitmap = frame?.imagePath?.let { loadBitmapWithOrientation(it) }
             if (photoBitmap != null) {
-                canvas.drawBitmap(photoBitmap, null, slotRect, null)
+                val transform = uiState.photoAssignmentTransforms.getOrNull(index) ?: PhotoTransform()
+                drawPhotoBitmapFit(canvas, photoBitmap, slotRect, transform)
             }
         }
 
@@ -220,7 +222,24 @@ object PrintComposer {
             canvas.drawBitmap(overlayBitmap, null, destRect, null)
         }
 
-        savePrintFile(storageService, uiState.sessionId, bitmap)
+        return savePrintFile(storageService, uiState.sessionId, bitmap)
+    }
+
+    private fun drawPhotoBitmapFit(canvas: Canvas, photoBitmap: Bitmap, slotRect: RectF, transform: PhotoTransform = PhotoTransform()) {
+        val imageWidth = photoBitmap.width.toFloat()
+        val imageHeight = photoBitmap.height.toFloat()
+        val baseScale = max(slotRect.width() / imageWidth, slotRect.height() / imageHeight)
+        val fillWidth = imageWidth * baseScale
+        val fillHeight = imageHeight * baseScale
+        val scaledWidth = fillWidth * transform.scale
+        val scaledHeight = fillHeight * transform.scale
+        val left = slotRect.left + (slotRect.width() - scaledWidth) / 2f + transform.offsetX
+        val top = slotRect.top + (slotRect.height() - scaledHeight) / 2f + transform.offsetY
+        val destRect = RectF(left, top, left + scaledWidth, top + scaledHeight)
+        canvas.save()
+        canvas.clipRect(slotRect)
+        canvas.drawBitmap(photoBitmap, null, destRect, null)
+        canvas.restore()
     }
 
     private fun renderSheetHeader(canvas: Canvas) {

@@ -18,9 +18,11 @@ import com.zcamstudio.kawaiipb.domain.usecase.GetKioskSessionCatalogUseCase
 import com.zcamstudio.kawaiipb.feature.printing.PrintService
 import com.zcamstudio.kawaiipb.services.logging.SessionLogService
 import com.zcamstudio.kawaiipb.services.storage.KawaiiStorageService
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -488,32 +490,44 @@ class FlowViewModel(
         _uiState.update {
             it.copy(
                 stage = KioskFlowStage.Printing,
-                stageSecondsLeft = stageDuration(KioskFlowStage.Printing),
+                stageSecondsLeft = 0,
                 printProgress = 0f,
-                printStatus = "Preparing print job",
+                printStatus = "Preparing PDF export",
                 printOutputPath = null,
-                summaryMessage = "Sending to printer"
+                summaryMessage = "Saving exported strip"
             )
         }
         viewModelScope.launch {
-            sessionLogService.logEvent(currentSessionId, "print_started")
-            printService.renderPrintSheet(uiState.value, storageService)
-            val outputPath = storageService.printFile(currentSessionId).absolutePath
-            sessionLogService.logEvent(currentSessionId, "print_rendered:$outputPath")
-            _uiState.update { current ->
-                current.copy(
-                    printOutputPath = outputPath,
-                    printStatus = "Final image ready",
-                    printProgress = 0.5f
-                )
-            }
-            sessionLogService.logEvent(currentSessionId, "print_sent")
-            _uiState.update { current ->
-                current.copy(
-                    printProgress = 1f,
-                    printStatus = "Print job sent",
-                    summaryMessage = "Printed to 4×6 sheet"
-                )
+            try {
+                sessionLogService.logEvent(currentSessionId, "print_started")
+                val rendered = withContext(Dispatchers.IO) {
+                    printService.renderPrintSheet(uiState.value, storageService)
+                }
+                val outputPath = storageService.publicPdfDisplayPath(currentSessionId)
+
+                if (rendered) {
+                    sessionLogService.logEvent(currentSessionId, "print_rendered:$outputPath")
+                    _uiState.update { current ->
+                        current.copy(
+                            printOutputPath = outputPath,
+                            printStatus = "PDF created successfully",
+                            printProgress = 1f,
+                            summaryMessage = "Photo strip export saved to PDF"
+                        )
+                    }
+                    sessionLogService.logEvent(currentSessionId, "print_saved")
+                } else {
+                    throw IllegalStateException("PDF export file was not written")
+                }
+            } catch (exception: Exception) {
+                _uiState.update { current ->
+                    current.copy(
+                        printProgress = 0f,
+                        printStatus = "Export failed",
+                        summaryMessage = "Unable to save final photo strip: ${exception.message ?: "Unknown error"}"
+                    )
+                }
+                sessionLogService.logEvent(currentSessionId, "print_failed:${exception.message ?: "Unknown error"}")
             }
         }
     }
@@ -543,10 +557,7 @@ class FlowViewModel(
         _uiState.update { state ->
             if (state.isLoading) return@update state
             val newSessionSeconds = (state.sessionSecondsLeft - 1).coerceAtLeast(0)
-            val nextPrintProgress = if (state.stage == KioskFlowStage.Printing) {
-                val duration = stageDuration(KioskFlowStage.Printing).coerceAtLeast(1)
-                (1f - ((state.stageSecondsLeft - 1).coerceAtLeast(0) / duration.toFloat())).coerceIn(0f, 1f)
-            } else state.printProgress
+            val nextPrintProgress = state.printProgress
             val nextQrExpiry = if (state.stage == KioskFlowStage.Qr) (state.qrExpirySeconds - 1).coerceAtLeast(0) else state.qrExpirySeconds
 
             var nextState = advanceFlowStateForTick(
@@ -570,10 +581,9 @@ class FlowViewModel(
             if (nextState.stage == KioskFlowStage.Printing) {
                 nextState = nextState.copy(
                     printStatus = when {
-                        nextState.printProgress < 0.25f -> "Preparing print job"
-                        nextState.printProgress < 0.5f -> "Rendering photo strip"
-                        nextState.printProgress < 0.9f -> "Sending to printer"
-                        else -> "Finishing print job"
+                        nextState.printProgress >= 1f -> "PDF created successfully"
+                        nextState.printStatus == "Export failed" -> nextState.printStatus
+                        else -> "Preparing PDF export"
                     }
                 )
             }

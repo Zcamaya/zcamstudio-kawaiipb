@@ -3,10 +3,10 @@ package com.zcamstudio.kawaiipb.feature.flow.presentation
 import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
+import androidx.camera.core.CameraSelector
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.camera.core.AspectRatio
-import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageCapture
 import androidx.camera.core.ImageCaptureException
 import androidx.camera.lifecycle.ProcessCameraProvider
@@ -91,6 +91,15 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
+private fun buildCameraSelector(cameraId: String): androidx.camera.core.CameraSelector {
+    return when (cameraId.lowercase()) {
+        "front" -> androidx.camera.core.CameraSelector.DEFAULT_FRONT_CAMERA
+        "rear", "back" -> androidx.camera.core.CameraSelector.DEFAULT_BACK_CAMERA
+        "external" -> androidx.camera.core.CameraSelector.DEFAULT_BACK_CAMERA
+        else -> androidx.camera.core.CameraSelector.DEFAULT_BACK_CAMERA
+    }
+}
+
 @Composable
 internal fun FlowCameraCaptureStage(
     uiState: FlowUiState,
@@ -149,10 +158,12 @@ internal fun FlowCameraCaptureStage(
                 .setCaptureMode(ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY)
                 .setTargetAspectRatio(AspectRatio.RATIO_4_3)
                 .build()
-            val selector = when (uiState.defaultCameraLens) {
-                CameraLens.Front -> CameraSelector.DEFAULT_FRONT_CAMERA
-                CameraLens.Rear -> CameraSelector.DEFAULT_BACK_CAMERA
+            val preferredCameraId = if (uiState.cameraMode == CameraMode.Classic) {
+                uiState.classicCameraSelectionId
+            } else {
+                uiState.elevatorCameraSelectionId
             }
+            val selector = buildCameraSelector(preferredCameraId)
 
             cameraProvider.unbindAll()
             cameraProvider.bindToLifecycle(lifecycleOwner, selector, preview, capture)
@@ -205,14 +216,14 @@ internal fun FlowCameraCaptureStage(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
+                .padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             Row(
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(16.dp)
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 Box(
                     modifier = Modifier
@@ -220,7 +231,7 @@ internal fun FlowCameraCaptureStage(
                         .fillMaxHeight()
                         .clip(RoundedCornerShape(26.dp))
                         .background(Color.Black.copy(alpha = 0.08f))
-                        .padding(8.dp)
+                        .padding(6.dp)
                 ) {
                     Column(
                         modifier = Modifier
@@ -279,7 +290,7 @@ internal fun FlowCameraCaptureStage(
                         text = "${uiState.capturedFrames.size}/8",
                         modifier = Modifier
                             .align(Alignment.TopStart)
-                            .padding(10.dp)
+                            .padding(6.dp)
                     )
 
                     if (uiState.isCaptureInProgress) {
@@ -316,7 +327,7 @@ internal fun FlowCameraCaptureStage(
                     CaptureButton(
                         enabled = !uiState.isCaptureInProgress && !uiState.isCaptureCountdownActive,
                         onClick = onCaptureNow,
-                        modifier = Modifier.size(if (isTablet) 126.dp else 138.dp)
+                        modifier = Modifier.size(if (isTablet) 110.dp else 122.dp)
                     )
                 }
             }

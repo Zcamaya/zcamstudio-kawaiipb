@@ -72,7 +72,7 @@ fun KawaiiPbApp() {
             title = { Text("Public storage access required") },
             text = {
                 Text(
-                    "KawaiiPB needs permission to access the public Pictures area before it can create the shared Templates, Stickers, Layouts, and Exports folders."
+                    "KawaiiPB needs permission to access the public Pictures area before it can create the shared Layouts and Exports folders."
                 )
             },
             confirmButton = {

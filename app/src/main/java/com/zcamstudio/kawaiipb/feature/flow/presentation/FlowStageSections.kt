@@ -1,5 +1,6 @@
 package com.zcamstudio.kawaiipb.feature.flow.presentation
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -20,17 +21,20 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.zcamstudio.kawaiipb.core.designsystem.*
-import com.zcamstudio.kawaiipb.domain.model.BrushTool
+// BrushTool removed
 import com.zcamstudio.kawaiipb.domain.model.KioskFlowStage
-import com.zcamstudio.kawaiipb.domain.model.StickerOption
 import com.zcamstudio.kawaiipb.domain.model.StripSize
-import com.zcamstudio.kawaiipb.domain.model.TemplateOption
+// TemplateOption and StickerOption removed
 
 @Composable
 internal fun FlowStripSizeStage(
@@ -38,22 +42,32 @@ internal fun FlowStripSizeStage(
     onSelectStripSize: (StripSize) -> Unit,
     onContinue: () -> Unit
 ) {
+    val options = remember { listOf(StripSize.TwoByFour, StripSize.TwoByThree, StripSize.TwoByTwo) }
+
     Column(verticalArrangement = Arrangement.spacedBy(16.dp), modifier = Modifier.fillMaxWidth()) {
-        val size = StripSize.TwoByFour
-        Surface(
-            shape = androidx.compose.material3.MaterialTheme.shapes.large,
-            color = if (size == uiState.stripSize) SoftLavender.copy(alpha = 0.4f) else WarmCream,
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable { onSelectStripSize(size) }
+        Text(text = "Choose your strip layout", style = androidx.compose.material3.MaterialTheme.typography.titleMedium, color = InkRose)
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Row(
-                modifier = Modifier.padding(18.dp).fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(text = size.label, style = androidx.compose.material3.MaterialTheme.typography.titleLarge, color = InkRose)
-                StripPreviewStrip(size = size)
+            options.forEach { size ->
+                val isSelected = size == uiState.stripSize
+                Surface(
+                    shape = androidx.compose.material3.MaterialTheme.shapes.large,
+                    color = if (isSelected) SoftLavender.copy(alpha = 0.4f) else WarmCream,
+                    modifier = Modifier
+                        .weight(1f)
+                        .clickable { onSelectStripSize(size) }
+                ) {
+                    Column(
+                        modifier = Modifier.padding(12.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Text(text = size.label, style = androidx.compose.material3.MaterialTheme.typography.titleMedium, color = InkRose)
+                        StripPreviewCard(size = size)
+                    }
+                }
             }
         }
     }
@@ -62,120 +76,40 @@ internal fun FlowStripSizeStage(
 }
 
 @Composable
-internal fun StripPreviewStrip(size: StripSize) {
-    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-        repeat(size.frameCount) {
-            Box(
-                modifier = Modifier
-                    .size(width = 20.dp, height = 34.dp)
-                    .clip(RoundedCornerShape(6.dp))
-                    .background(SoftLavender)
+internal fun StripPreviewCard(size: StripSize) {
+    val context = LocalContext.current
+    val assetPath = remember(size) { stripSizePreviewAssetPath(size) }
+    val bitmap = remember(assetPath) { loadAssetImage(context, assetPath) }
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(140.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .background(SoftLavender.copy(alpha = 0.18f))
+            .border(1.dp, SoftLavender.copy(alpha = 0.45f), RoundedCornerShape(12.dp))
+    ) {
+        if (bitmap != null) {
+            Image(
+                bitmap = bitmap,
+                contentDescription = "${size.label} strip preview",
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Fit
             )
-        }
-    }
-}
-
-@Composable
-internal fun FlowTemplateStage(
-    uiState: FlowUiState,
-    onSelectTemplate: (TemplateOption) -> Unit,
-    onContinue: () -> Unit
-) {
-    FlowScrollableRow {
-        uiState.catalog.templates.forEach { template ->
-            val selected = template == uiState.selectedTemplate
-            TemplateCard(template = template, selected = selected, onClick = { onSelectTemplate(template) })
-        }
-    }
-    KawaiiPrimaryButton(text = "Continue", modifier = Modifier.fillMaxWidth()) { onContinue() }
-}
-
-@Composable
-internal fun FlowDrawingStage(
-    uiState: FlowUiState,
-    onSetBrushTool: (BrushTool) -> Unit,
-    onSetBrushColor: (Long) -> Unit,
-    onSetBrushSize: (Float) -> Unit,
-    onStartStroke: (Float, Float) -> Unit,
-    onAddStrokePoint: (Float, Float) -> Unit,
-    onContinue: () -> Unit
-) {
-    FlowScrollableRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        BrushTool.entries.forEach { tool ->
-            Surface(
-                shape = CircleShape,
-                color = if (tool == uiState.activeTool) CherryPink.copy(alpha = 0.18f) else WarmCream,
-                onClick = { onSetBrushTool(tool) }
+        } else {
+            Column(
+                modifier = Modifier.fillMaxSize(),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
             ) {
-                Text(text = tool.name, modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp), color = InkRose)
+                Text(text = size.label, color = InkRose)
+                Text(text = "Preview soon", color = SoftText)
             }
         }
     }
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        listOf(0xFFFF7FA7L, 0xFFFFD6E5L, 0xFFE4D8FFL, 0xFFDDF6E8L, 0xFFFFE2C8L, 0xFF4E3745L).forEach { color ->
-            Box(
-                modifier = Modifier
-                    .size(26.dp)
-                    .background(Color(color), CircleShape)
-                    .border(1.dp, Color(0x33000000), CircleShape)
-                    .clickableNoRipple { onSetBrushColor(color) }
-            )
-        }
-    }
-    Surface(shape = androidx.compose.material3.MaterialTheme.shapes.large, color = CloudWhite, modifier = Modifier.fillMaxWidth().height(300.dp)) {
-        DrawingCanvas(
-            strokes = uiState.drawingStrokes,
-            activeColor = Color(uiState.activeColorArgb),
-            brushSize = uiState.brushSize,
-            onStartStroke = onStartStroke,
-            onAddStrokePoint = onAddStrokePoint
-        )
-    }
-    BrushSizeSlider(value = uiState.brushSize, onValueChange = onSetBrushSize)
-    KawaiiPrimaryButton(text = "Continue", modifier = Modifier.fillMaxWidth()) { onContinue() }
 }
 
-@Composable
-internal fun FlowStickerStage(
-    uiState: FlowUiState,
-    onAddSticker: (StickerOption) -> Unit,
-    onSelectSticker: (String) -> Unit,
-    onMoveSticker: (Float, Float) -> Unit,
-    onScaleSticker: (Float) -> Unit,
-    onRotateSticker: (Float) -> Unit,
-    onDuplicateSticker: () -> Unit,
-    onDeleteSticker: () -> Unit,
-    onContinue: () -> Unit
-) {
-    FlowScrollableRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-        uiState.catalog.stickers.forEach { sticker ->
-            Surface(shape = androidx.compose.material3.MaterialTheme.shapes.large, color = WarmCream, onClick = { onAddSticker(sticker) }) {
-                Column(modifier = Modifier.padding(12.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(text = sticker.symbol, style = androidx.compose.material3.MaterialTheme.typography.headlineMedium)
-                    Text(text = sticker.name, style = androidx.compose.material3.MaterialTheme.typography.labelLarge, color = InkRose)
-                }
-            }
-        }
-    }
-    StickerPlacementBoard(
-        stickers = uiState.placedStickers,
-        selectedStickerId = uiState.selectedStickerId,
-        onSelectSticker = onSelectSticker
-    )
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        KawaiiSecondaryButton(text = "Left", modifier = Modifier.weight(1f)) { onMoveSticker(-0.05f, 0f) }
-        KawaiiSecondaryButton(text = "Right", modifier = Modifier.weight(1f)) { onMoveSticker(0.05f, 0f) }
-        KawaiiSecondaryButton(text = "Up", modifier = Modifier.weight(1f)) { onMoveSticker(0f, -0.05f) }
-        KawaiiSecondaryButton(text = "Down", modifier = Modifier.weight(1f)) { onMoveSticker(0f, 0.05f) }
-    }
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        KawaiiSecondaryButton(text = "Scale +", modifier = Modifier.weight(1f)) { onScaleSticker(1.1f) }
-        KawaiiSecondaryButton(text = "Rotate", modifier = Modifier.weight(1f)) { onRotateSticker(12f) }
-        KawaiiSecondaryButton(text = "Duplicate", modifier = Modifier.weight(1f)) { onDuplicateSticker() }
-        KawaiiSecondaryButton(text = "Delete", modifier = Modifier.weight(1f)) { onDeleteSticker() }
-    }
-    KawaiiPrimaryButton(text = "Continue", modifier = Modifier.fillMaxWidth()) { onContinue() }
-}
+// Template, drawing, and sticker stages removed
 
 @Composable
 internal fun FlowPreviewStage(

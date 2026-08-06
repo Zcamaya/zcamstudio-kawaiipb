@@ -6,6 +6,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.absoluteOffset
 import androidx.compose.foundation.layout.Box
@@ -32,7 +33,10 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -44,11 +48,13 @@ import androidx.compose.ui.graphics.Outline
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
@@ -64,7 +70,7 @@ import com.zcamstudio.kawaiipb.core.designsystem.SoftLavender
 import com.zcamstudio.kawaiipb.core.designsystem.SoftText
 import com.zcamstudio.kawaiipb.core.designsystem.WarmCream
 import com.zcamstudio.kawaiipb.domain.model.CaptureFrame
-import com.zcamstudio.kawaiipb.domain.model.TemplateOption
+// TemplateOption removed
 import com.zcamstudio.kawaiipb.domain.model.StripLayout
 import kotlin.math.min
 
@@ -75,13 +81,16 @@ internal fun FlowPhotoAssignmentStage(
     onLoadStripLayout: (StripLayout?) -> Unit,
     onSelectAssignedFrame: (Int) -> Unit,
     onSelectCapturedPhoto: (Int) -> Unit,
-    onUpdatePhotoAssignmentTransform: (Int, Float, Float, Float) -> Unit,
+    onRemoveFrame: (Int) -> Unit,
+    onUpdatePhotoAssignmentTransform: (Int, Float, Float, Float, Float) -> Unit,
     onResetPhotoAssignmentTransform: (Int) -> Unit,
     onShuffleAssignment: () -> Unit,
     onResetAssignment: () -> Unit,
     onAutoFillAssignment: () -> Unit
 ) {
-    val assignmentLayout = loadStripLayoutFromAssets(LocalContext.current, "layouts/strip_2x4.json")
+    val assignmentLayout = loadStripLayoutFromAssets(LocalContext.current, stripSizeLayoutAssetPath(uiState.stripSize))
+    var selectedSection by remember { mutableStateOf(0) }
+    val sectionLabels = listOf("Captured Photos", "Template", "Stickers")
 
     LaunchedEffect(assignmentLayout) {
         onLoadStripLayout(assignmentLayout)
@@ -105,8 +114,8 @@ internal fun FlowPhotoAssignmentStage(
                         assignments = uiState.photoAssignmentAssignments,
                         transforms = uiState.photoAssignmentTransforms,
                         capturedFrames = uiState.capturedFrames,
-                        selectedTemplate = uiState.selectedTemplate,
                         onSelectFrame = onSelectAssignedFrame,
+                        onRemoveFrame = onRemoveFrame,
                         onUpdatePhotoTransform = onUpdatePhotoAssignmentTransform,
                         onResetPhotoTransform = onResetPhotoAssignmentTransform
                     )
@@ -121,20 +130,82 @@ internal fun FlowPhotoAssignmentStage(
                         .padding(end = 18.dp, top = 18.dp, bottom = 18.dp),
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    Text(text = "Captured Photos", style = MaterialTheme.typography.headlineSmall, color = InkRose)
-
-                    Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        repeat(2) { rowIndex ->
-                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                                repeat(4) { columnIndex ->
-                                    val photoIndex = rowIndex * 4 + columnIndex
-                                    val frame = uiState.capturedFrames.getOrNull(photoIndex)
-                                    FlowCapturedPhotoListItem(
-                                        frame = frame,
-                                        index = photoIndex,
-                                        modifier = Modifier.weight(1f),
-                                        onClick = { onSelectCapturedPhoto(photoIndex) }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        sectionLabels.forEachIndexed { index, label ->
+                            val selected = index == selectedSection
+                            Surface(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clickable { selectedSection = index },
+                                shape = RoundedCornerShape(999.dp),
+                                color = if (selected) CherryPink else Color.White,
+                                border = BorderStroke(1.dp, if (selected) CherryPink else Color(0xFFE8DDE8))
+                            ) {
+                                Box(
+                                    modifier = Modifier.padding(vertical = 8.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = label,
+                                        style = MaterialTheme.typography.labelLarge,
+                                        color = if (selected) Color.White else InkRose
                                     )
+                                }
+                            }
+                        }
+                    }
+
+                    when (selectedSection) {
+                        0 -> {
+                            Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                                repeat(2) { rowIndex ->
+                                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                                        repeat(4) { columnIndex ->
+                                            val photoIndex = rowIndex * 4 + columnIndex
+                                            val frame = uiState.capturedFrames.getOrNull(photoIndex)
+                                            FlowCapturedPhotoListItem(
+                                                frame = frame,
+                                                index = photoIndex,
+                                                modifier = Modifier.weight(1f),
+                                                onClick = { onSelectCapturedPhoto(photoIndex) }
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        1 -> {
+                            Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                                listOf("Classic", "Glow", "Minimal").forEach { template ->
+                                    Surface(
+                                        shape = RoundedCornerShape(16.dp),
+                                        color = Color.White,
+                                        border = BorderStroke(1.dp, Color(0xFFE8DDE8)),
+                                        modifier = Modifier.fillMaxWidth()
+                                    ) {
+                                        Box(modifier = Modifier.padding(12.dp)) {
+                                            Text(text = template, color = InkRose, style = MaterialTheme.typography.bodyMedium)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        2 -> {
+                            Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                                listOf("Heart", "Sparkle", "Star").forEach { sticker ->
+                                    Surface(
+                                        shape = RoundedCornerShape(16.dp),
+                                        color = Color.White,
+                                        border = BorderStroke(1.dp, Color(0xFFE8DDE8)),
+                                        modifier = Modifier.fillMaxWidth()
+                                    ) {
+                                        Box(modifier = Modifier.padding(12.dp)) {
+                                            Text(text = sticker, color = InkRose, style = MaterialTheme.typography.bodyMedium)
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -160,9 +231,9 @@ internal fun FlowGraphicToolWorkspace(
     assignments: List<Int?>,
     transforms: List<PhotoTransform>,
     capturedFrames: List<CaptureFrame>,
-    selectedTemplate: TemplateOption?,
     onSelectFrame: (Int) -> Unit,
-    onUpdatePhotoTransform: (Int, Float, Float, Float) -> Unit,
+    onRemoveFrame: (Int) -> Unit,
+    onUpdatePhotoTransform: (Int, Float, Float, Float, Float) -> Unit,
     onResetPhotoTransform: (Int) -> Unit
 ) {
     val aspectRatio = layout?.let { it.canvasWidth.toFloat() / it.canvasHeight.toFloat() } ?: (2f / 3f)
@@ -179,8 +250,8 @@ internal fun FlowGraphicToolWorkspace(
             transforms = transforms,
             capturedFrames = capturedFrames,
             selectedSlot = selectedSlot,
-            selectedTemplate = selectedTemplate,
             onSelectFrame = onSelectFrame,
+            onRemoveFrame = onRemoveFrame,
             onUpdatePhotoTransform = onUpdatePhotoTransform,
             onResetPhotoTransform = onResetPhotoTransform,
             modifier = Modifier.fillMaxSize()
@@ -218,9 +289,9 @@ internal fun FlowAssignmentLayoutPreview(
     transforms: List<PhotoTransform>,
     capturedFrames: List<CaptureFrame>,
     selectedSlot: Int?,
-    selectedTemplate: TemplateOption?,
     onSelectFrame: (Int) -> Unit,
-    onUpdatePhotoTransform: (Int, Float, Float, Float) -> Unit,
+    onRemoveFrame: (Int) -> Unit,
+    onUpdatePhotoTransform: (Int, Float, Float, Float, Float) -> Unit,
     onResetPhotoTransform: (Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -234,8 +305,7 @@ internal fun FlowAssignmentLayoutPreview(
     val context = LocalContext.current
     val baseAssetPath = resolveLayoutAssetPath(layout)
     val backgroundImage = remember(baseAssetPath) { baseAssetPath?.let { loadAssetImage(context, it) } }
-    val overlayAssetPath = resolveTemplateOverlayAssetPath(selectedTemplate?.id)
-    val overlayImage = remember(overlayAssetPath) { overlayAssetPath?.let { loadAssetImage(context, it) } }
+    // template overlay removed
 
     BoxWithConstraints(modifier = modifier) {
         val previewAspect = layout.canvasWidth.toFloat() / layout.canvasHeight.toFloat()
@@ -279,17 +349,47 @@ internal fun FlowAssignmentLayoutPreview(
                             color = if (selectedSlot == slotIndex) CherryPink else Color.White.copy(alpha = 0.45f),
                             shape = slotShape
                         )
-                        .pointerInput(slotIndex) {
-                            detectTapGestures(onTap = { onSelectFrame(slotIndex) })
+                                .pointerInput(slotIndex) {
+                            detectTapGestures(
+                                onTap = { onSelectFrame(slotIndex) },
+                                onLongPress = {
+                                    val assignedIndex = assignments.getOrNull(slotIndex)
+                                    if (assignedIndex != null) onRemoveFrame(slotIndex)
+                                }
+                            )
+                        }
+                        .pointerInput(slotIndex, selectedSlot) {
+                            if (selectedSlot != slotIndex) return@pointerInput
+                            var currentTransform = transform
+                            detectTransformGestures { _, pan, zoom, rotation ->
+                                currentTransform = currentTransform.copy(
+                                    scale = (currentTransform.scale * zoom).coerceIn(0.5f, 5f),
+                                    offsetX = currentTransform.offsetX + pan.x,
+                                    offsetY = currentTransform.offsetY + pan.y,
+                                    rotation = currentTransform.rotation + rotation
+                                )
+                                onUpdatePhotoTransform(
+                                    slotIndex,
+                                    currentTransform.scale,
+                                    currentTransform.offsetX,
+                                    currentTransform.offsetY,
+                                    currentTransform.rotation
+                                )
+                            }
                         },
                     contentAlignment = Alignment.Center
                 ) {
                     if (imageBitmap != null) {
                         val imageWidth = imageBitmap.width.toFloat()
                         val imageHeight = imageBitmap.height.toFloat()
-                        val fillScale = max(slotWidth.value / imageWidth, slotHeight.value / imageHeight)
-                        val imageDisplayWidth = (imageWidth * fillScale).dp
-                        val imageDisplayHeight = (imageHeight * fillScale).dp
+                        val imageDisplaySize = with(LocalDensity.current) {
+                            val slotWidthPx = slotWidth.toPx()
+                            val slotHeightPx = slotHeight.toPx()
+                            val fillScale = max(slotWidthPx / imageWidth, slotHeightPx / imageHeight) * 1.25f
+                            Pair((imageWidth * fillScale).toDp(), (imageHeight * fillScale).toDp())
+                        }
+                        val imageDisplayWidth = imageDisplaySize.first
+                        val imageDisplayHeight = imageDisplaySize.second
 
                         Image(
                             bitmap = imageBitmap,
@@ -297,8 +397,14 @@ internal fun FlowAssignmentLayoutPreview(
                             contentScale = ContentScale.Fit,
                             modifier = Modifier
                                 .size(width = imageDisplayWidth, height = imageDisplayHeight)
-                                .offset(x = transform.offsetX.dp, y = transform.offsetY.dp)
-                                .graphicsLayer(scaleX = transform.scale, scaleY = transform.scale)
+                                .graphicsLayer(
+                                    translationX = transform.offsetX,
+                                    translationY = transform.offsetY,
+                                    scaleX = transform.scale,
+                                    scaleY = transform.scale,
+                                    rotationZ = transform.rotation,
+                                    transformOrigin = TransformOrigin.Center
+                                )
                         )
                     }
 
@@ -316,9 +422,7 @@ internal fun FlowAssignmentLayoutPreview(
                 }
             }
 
-            if (overlayImage != null) {
-                Image(bitmap = overlayImage, contentDescription = null, contentScale = ContentScale.FillBounds, modifier = Modifier.fillMaxSize())
-            }
+            // overlay removed
         }
     }
 }
@@ -327,15 +431,13 @@ internal fun FlowAssignmentLayoutPreview(
 internal fun FlowPrintSheetPreview(
     layout: StripLayout,
     assignments: List<Int?>,
-    capturedFrames: List<CaptureFrame>,
-    selectedTemplate: TemplateOption? = null
+    capturedFrames: List<CaptureFrame>
 ) {
     BoxWithConstraints(modifier = Modifier.fillMaxWidth().height(360.dp)) {
         val context = LocalContext.current
         val baseAssetPath = resolveLayoutAssetPath(layout)
         val backgroundImage = baseAssetPath?.let { loadAssetImage(context, it) }
-        val overlayAssetPath = resolveTemplateOverlayAssetPath(selectedTemplate?.id)
-        val overlayImage = overlayAssetPath?.let { loadAssetImage(context, it) }
+        // template overlay removed
         val scale = min(constraints.maxWidth.toFloat() / layout.canvasWidth, constraints.maxHeight.toFloat() / layout.canvasHeight)
         val previewWidth = layout.canvasWidth * scale
         val previewHeight = layout.canvasHeight * scale
@@ -388,9 +490,7 @@ internal fun FlowPrintSheetPreview(
                     }
                 }
 
-                if (overlayImage != null) {
-                    Image(bitmap = overlayImage, contentDescription = null, contentScale = ContentScale.FillBounds, modifier = Modifier.fillMaxSize())
-                }
+                // overlay removed
             }
         }
     }

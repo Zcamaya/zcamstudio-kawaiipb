@@ -5,9 +5,6 @@ enum class KioskFlowStage {
     Capture,
     PhotoAssignment,
     StripSize,
-    TemplateGallery,
-    Drawing,
-    Stickers,
     Preview,
     Printing,
     Qr
@@ -24,7 +21,9 @@ enum class CameraLens {
 }
 
 enum class StripSize(val label: String, val frameCount: Int) {
-    TwoByFour("2 x 4", 8)
+    TwoByFour("2 x 4", 8),
+    TwoByThree("2 x 3", 6),
+    TwoByTwo("2 x 2", 4)
 }
 
 enum class BrushTool {
@@ -41,36 +40,7 @@ data class CaptureFrame(
     val imagePath: String? = null
 )
 
-data class TemplateOption(
-    val id: String,
-    val name: String,
-    val category: String,
-    val accent: String
-)
 
-data class StickerOption(
-    val id: String,
-    val name: String,
-    val category: String,
-    val symbol: String
-)
-
-data class PlacedSticker(
-    val id: String,
-    val sticker: StickerOption,
-    val x: Float,
-    val y: Float,
-    val scale: Float,
-    val rotation: Float
-)
-
-data class DrawingStroke(
-    val id: String,
-    val colorArgb: Long,
-    val strokeWidth: Float,
-    val tool: BrushTool,
-    val points: List<Pair<Float, Float>>
-)
 
 data class PrintStep(
     val label: String,
@@ -79,9 +49,7 @@ data class PrintStep(
 
 data class KioskSessionCatalog(
     val cameraModes: List<CameraMode>,
-    val stripSizes: List<StripSize>,
-    val templates: List<TemplateOption>,
-    val stickers: List<StickerOption>
+    val stripSizes: List<StripSize>
 )
 
 data class LandingConfig(

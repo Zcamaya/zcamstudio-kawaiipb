@@ -13,10 +13,13 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -37,9 +40,7 @@ fun LandingScreen(
     uiState: LandingUiState,
     onStartClicked: () -> Unit,
     onLogoTapped: () -> Unit,
-    onPinChanged: (String) -> Unit,
-    onPinSubmitted: () -> Unit,
-    onPinDialogDismissed: () -> Unit
+    onAdminUnlockConfirmed: () -> Unit
 ) {
     KawaiiBackdrop(modifier = Modifier.fillMaxSize())
 
@@ -113,25 +114,19 @@ fun LandingScreen(
             }
         }
 
-        if (uiState.showAdminPinDialog) {
-            AdminPinDialog(
-                pinInput = uiState.pinInput,
-                pinError = uiState.pinError,
-                onPinChanged = onPinChanged,
-                onPinSubmitted = onPinSubmitted,
-                onPinDialogDismissed = onPinDialogDismissed
+        if (uiState.logoTapCount >= 7) {
+            AdminUnlockDialog(
+                onConfirm = onAdminUnlockConfirmed,
+                onDismiss = { }
             )
         }
     }
 }
 
 @Composable
-private fun AdminPinDialog(
-    pinInput: String,
-    pinError: String?,
-    onPinChanged: (String) -> Unit,
-    onPinSubmitted: () -> Unit,
-    onPinDialogDismissed: () -> Unit
+private fun AdminUnlockDialog(
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit
 ) {
     Box(
         modifier = Modifier.fillMaxSize(),
@@ -148,21 +143,15 @@ private fun AdminPinDialog(
                 modifier = Modifier.padding(24.dp),
                 verticalArrangement = Arrangement.spacedBy(KawaiiSpacing.md)
             ) {
-                Text(text = "Admin PIN", style = MaterialTheme.typography.headlineSmall, color = CherryPink)
-                OutlinedTextField(
-                    value = pinInput,
-                    onValueChange = onPinChanged,
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                    label = { Text("PIN") },
-                    isError = pinError != null
+                Text(text = "Admin Access", style = MaterialTheme.typography.headlineSmall, color = CherryPink)
+                Text(
+                    text = "This emulator does not have a real device lock, so unlock is simulated locally.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-                if (pinError != null) {
-                    Text(text = pinError, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error)
-                }
                 androidx.compose.foundation.layout.Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    KawaiiPrimaryButton(text = "Cancel", modifier = Modifier.weight(1f)) { onPinDialogDismissed() }
-                    KawaiiPrimaryButton(text = "Unlock", modifier = Modifier.weight(1f)) { onPinSubmitted() }
+                    KawaiiPrimaryButton(text = "Cancel", modifier = Modifier.weight(1f)) { onDismiss() }
+                    KawaiiPrimaryButton(text = "Unlock", modifier = Modifier.weight(1f)) { onConfirm() }
                 }
             }
         }

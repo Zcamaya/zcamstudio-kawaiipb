@@ -1,6 +1,7 @@
 package com.zcamstudio.kawaiipb.feature.flow.presentation
 
 import com.zcamstudio.kawaiipb.domain.model.KioskFlowStage
+import com.zcamstudio.kawaiipb.domain.model.StripSize
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
@@ -40,5 +41,12 @@ class FlowPresentationHelpersTest {
         assertEquals(KioskFlowStage.Capture, advanced.stage)
         assertEquals(stageDuration(KioskFlowStage.Capture), advanced.stageSecondsLeft)
         assertEquals("Capture session ready", advanced.summaryMessage)
+    }
+
+    @Test
+    fun stripSizePreviewAssetsUseLayoutPreviewImages() {
+        assertEquals("layouts/strip_layout/2x4.png", stripSizePreviewAssetPath(StripSize.TwoByFour))
+        assertEquals("layouts/strip_layout/2x3.png", stripSizePreviewAssetPath(StripSize.TwoByThree))
+        assertEquals("layouts/strip_layout/2x2.png", stripSizePreviewAssetPath(StripSize.TwoByTwo))
     }
 }

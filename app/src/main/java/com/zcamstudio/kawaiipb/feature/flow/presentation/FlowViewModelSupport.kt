@@ -2,9 +2,9 @@ package com.zcamstudio.kawaiipb.feature.flow.presentation
 
 import com.zcamstudio.kawaiipb.domain.model.CameraLens
 import com.zcamstudio.kawaiipb.domain.model.CameraMode
-import com.zcamstudio.kawaiipb.domain.model.PlacedSticker
+// PlacedSticker removed
 
-internal const val PhotoAssignmentInitialScale = 1.1f
+internal const val PhotoAssignmentInitialScale = 1.0f
 
 internal fun buildFlowSessionId(): String {
     return "KPB-${System.currentTimeMillis()}"
@@ -34,15 +34,4 @@ internal fun updatePhotoAssignmentState(
     )
 }
 
-internal fun updateStickers(
-    state: FlowUiState,
-    stickers: List<PlacedSticker>,
-    selectedStickerId: String? = null,
-    summaryMessage: String? = null
-): FlowUiState {
-    return state.copy(
-        placedStickers = stickers,
-        selectedStickerId = selectedStickerId ?: state.selectedStickerId,
-        summaryMessage = summaryMessage ?: state.summaryMessage
-    )
-}
+// Sticker helpers removed

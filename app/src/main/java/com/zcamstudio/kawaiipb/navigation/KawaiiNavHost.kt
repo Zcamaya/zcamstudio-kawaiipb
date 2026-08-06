@@ -5,6 +5,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavType
@@ -48,7 +49,6 @@ fun KawaiiNavHost(
                     KawaiiViewModelFactory {
                         LandingViewModel(
                             getLandingConfigUseCase = dependencies.getLandingConfigUseCase,
-                            validateAdminPinUseCase = dependencies.validateAdminPinUseCase,
                             sessionLogService = dependencies.sessionLogService
                         )
                     }
@@ -69,9 +69,7 @@ fun KawaiiNavHost(
                 uiState = uiState,
                 onStartClicked = viewModel::onStartClicked,
                 onLogoTapped = viewModel::onLogoTapped,
-                onPinChanged = viewModel::onPinChanged,
-                onPinSubmitted = viewModel::onPinSubmitted,
-                onPinDialogDismissed = viewModel::onPinDialogDismissed
+                onAdminUnlockConfirmed = viewModel::onAdminUnlockConfirmed
             )
         }
 
@@ -118,23 +116,8 @@ fun KawaiiNavHost(
                 onSelectStripSize = viewModel::selectStripSize,
                 onContinueStripSize = viewModel::continueStripSize,
                 onLoadStripLayout = viewModel::setStripLayout,
-                onSelectTemplate = viewModel::selectTemplate,
-                onContinueTemplate = viewModel::continueTemplate,
-                onSetBrushTool = viewModel::setBrushTool,
-                onSetBrushColor = viewModel::setBrushColor,
-                onSetBrushSize = viewModel::setBrushSize,
-                onStartStroke = viewModel::startStroke,
-                onAddStrokePoint = viewModel::addStrokePoint,
-                onContinueDrawing = viewModel::continueDrawing,
-                onAddSticker = viewModel::addSticker,
-                onSelectSticker = viewModel::selectSticker,
-                onMoveSticker = viewModel::moveSelectedSticker,
-                onScaleSticker = viewModel::scaleSelectedSticker,
-                onRotateSticker = viewModel::rotateSelectedSticker,
-                onDuplicateSticker = viewModel::duplicateSelectedSticker,
-                onDeleteSticker = viewModel::deleteSelectedSticker,
-                onContinueStickers = viewModel::continueStickers,
                 onSelectAssignedFrame = viewModel::selectAssignedFrame,
+                onRemoveFrame = viewModel::removePhotoFromFrame,
                 onSelectCapturedPhoto = viewModel::selectCapturedPhoto,
                 onUpdatePhotoAssignmentTransform = viewModel::updatePhotoAssignmentTransform,
                 onResetPhotoAssignmentTransform = viewModel::resetPhotoAssignmentTransform,
@@ -154,7 +137,8 @@ fun KawaiiNavHost(
                 factory = remember(dependencies) {
                     KawaiiViewModelFactory {
                         AdminViewModel(
-                            getAdminDashboardSummaryUseCase = dependencies.getAdminDashboardSummaryUseCase
+                            getAdminDashboardSummaryUseCase = dependencies.getAdminDashboardSummaryUseCase,
+                            storageService = dependencies.storageService
                         )
                     }
                 }
@@ -163,6 +147,10 @@ fun KawaiiNavHost(
             AdminScreen(
                 uiState = uiState,
                 onSectionSelected = viewModel::onSectionSelected,
+                onTimerSettingChanged = viewModel::onTimerSettingChanged,
+                onCameraSelectionChanged = viewModel::onCameraSelectionChanged,
+                onSaveTimerSettings = viewModel::onSaveTimerSettings,
+                onResetTimerSettings = viewModel::onResetTimerSettings,
                 onBackToLanding = {
                     navController.popBackStack(KawaiiRoutes.Landing, inclusive = false)
                 }

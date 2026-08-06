@@ -2,16 +2,6 @@ package com.zcamstudio.kawaiipb.domain.model
 
 import java.io.File
 
-// Manifest model for template packages
-data class TemplateManifest(
-    val id: String,
-    val name: String,
-    val stripType: String,
-    val canvasWidth: Int,
-    val canvasHeight: Int,
-    val photoSlots: List<TemplatePhotoSlot>
-)
-
 data class TemplatePhotoSlot(
     val id: Int,
     val strip: Int = 1,
@@ -22,14 +12,6 @@ data class TemplatePhotoSlot(
     val rotation: Float = 0f,
     val mask: String? = null,
     val visible: Boolean = true
-)
-
-// Represents a loaded template package on disk
-data class TemplatePackage(
-    val manifest: TemplateManifest,
-    val templateImage: File?,
-    val previewImage: File?,
-    val thumbnailImage: File?
 )
 
 // Represents a generated base layout (strip layout) for a session

@@ -127,25 +127,10 @@ fun FlowScreen(
     onSelectStripSize: (StripSize) -> Unit,
     onContinueStripSize: () -> Unit,
     onLoadStripLayout: (StripLayout?) -> Unit,
-    onSelectTemplate: (TemplateOption) -> Unit,
-    onContinueTemplate: () -> Unit,
-    onSetBrushTool: (BrushTool) -> Unit,
-    onSetBrushColor: (Long) -> Unit,
-    onSetBrushSize: (Float) -> Unit,
-    onStartStroke: (Float, Float) -> Unit,
-    onAddStrokePoint: (Float, Float) -> Unit,
-    onContinueDrawing: () -> Unit,
-    onAddSticker: (StickerOption) -> Unit,
-    onSelectSticker: (String) -> Unit,
-    onMoveSticker: (Float, Float) -> Unit,
-    onScaleSticker: (Float) -> Unit,
-    onRotateSticker: (Float) -> Unit,
-    onDuplicateSticker: () -> Unit,
-    onDeleteSticker: () -> Unit,
-    onContinueStickers: () -> Unit,
     onSelectAssignedFrame: (Int) -> Unit,
+    onRemoveFrame: (Int) -> Unit,
     onSelectCapturedPhoto: (Int) -> Unit,
-    onUpdatePhotoAssignmentTransform: (Int, Float, Float, Float) -> Unit,
+    onUpdatePhotoAssignmentTransform: (Int, Float, Float, Float, Float) -> Unit,
     onResetPhotoAssignmentTransform: (Int) -> Unit,
     onShuffleAssignment: () -> Unit,
     onResetAssignment: () -> Unit,
@@ -158,18 +143,19 @@ fun FlowScreen(
     val layoutMode = rememberKioskLayoutMode()
     val isPortrait = layoutMode == KioskLayoutMode.Portrait
 
-    KawaiiBackdrop(modifier = Modifier.fillMaxSize())
+    Box(modifier = Modifier.fillMaxSize()) {
+        KawaiiBackdrop(modifier = Modifier.fillMaxSize())
 
-    if (uiState.isLoading) {
-        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Text(text = "Preparing kiosk session...", style = MaterialTheme.typography.titleLarge)
+        if (uiState.isLoading) {
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Text(text = "Preparing kiosk session...", style = MaterialTheme.typography.titleLarge)
+            }
+            return
         }
-        return
-    }
 
-    val stageTitle = flowStageTitle(uiState.stage)
-    val stageSubtitle = flowStageSubtitle(uiState.stage)
-    val renderStageContent: @Composable (Modifier) -> Unit = { modifier ->
+        val stageTitle = flowStageTitle(uiState.stage)
+        val stageSubtitle = flowStageSubtitle(uiState.stage)
+        val renderStageContent: @Composable (Modifier) -> Unit = { modifier ->
         StageBody(
             uiState = uiState,
             onSelectCameraMode = onSelectCameraMode,
@@ -184,23 +170,8 @@ fun FlowScreen(
             onSelectStripSize = onSelectStripSize,
             onContinueStripSize = onContinueStripSize,
             onLoadStripLayout = onLoadStripLayout,
-            onSelectTemplate = onSelectTemplate,
-            onContinueTemplate = onContinueTemplate,
-            onSetBrushTool = onSetBrushTool,
-            onSetBrushColor = onSetBrushColor,
-            onSetBrushSize = onSetBrushSize,
-            onStartStroke = onStartStroke,
-            onAddStrokePoint = onAddStrokePoint,
-            onContinueDrawing = onContinueDrawing,
-            onAddSticker = onAddSticker,
-            onSelectSticker = onSelectSticker,
-            onMoveSticker = onMoveSticker,
-            onScaleSticker = onScaleSticker,
-            onRotateSticker = onRotateSticker,
-            onDuplicateSticker = onDuplicateSticker,
-            onDeleteSticker = onDeleteSticker,
-            onContinueStickers = onContinueStickers,
             onSelectAssignedFrame = onSelectAssignedFrame,
+            onRemoveFrame = onRemoveFrame,
             onSelectCapturedPhoto = onSelectCapturedPhoto,
             onUpdatePhotoAssignmentTransform = onUpdatePhotoAssignmentTransform,
             onResetPhotoAssignmentTransform = onResetPhotoAssignmentTransform,
@@ -214,38 +185,43 @@ fun FlowScreen(
         )
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(if (isPortrait) 18.dp else 28.dp),
-        verticalArrangement = Arrangement.spacedBy(18.dp)
-    ) {
-        FlowTopHeader(
-            title = stageTitle,
-            subtitle = stageSubtitle
-        )
-
-        if (uiState.stage == KioskFlowStage.Capture) {
-            renderStageContent(Modifier.fillMaxSize())
-        } else if (isPortrait) {
+        Box(modifier = Modifier.fillMaxSize()) {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .verticalScroll(rememberScrollState()),
+                    .padding(if (isPortrait) 18.dp else 28.dp),
                 verticalArrangement = Arrangement.spacedBy(18.dp)
             ) {
-                renderStageContent(Modifier.fillMaxSize())
-            }
-        } else {
-            Row(
-                modifier = Modifier.fillMaxSize(),
-                horizontalArrangement = Arrangement.spacedBy(18.dp)
-            ) {
-                Column(
-                    modifier = Modifier.weight(1f).verticalScroll(rememberScrollState()),
-                    verticalArrangement = Arrangement.spacedBy(18.dp)
-                ) {
+                FlowTopHeader(
+                    title = stageTitle,
+                    subtitle = stageSubtitle,
+                    currentStage = uiState.stage,
+                    stageSecondsLeft = uiState.stageSecondsLeft
+                )
+
+                if (uiState.stage == KioskFlowStage.Capture) {
                     renderStageContent(Modifier.fillMaxSize())
+                } else if (isPortrait) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .verticalScroll(rememberScrollState()),
+                        verticalArrangement = Arrangement.spacedBy(18.dp)
+                    ) {
+                        renderStageContent(Modifier.fillMaxSize())
+                    }
+                } else {
+                    Row(
+                        modifier = Modifier.fillMaxSize(),
+                        horizontalArrangement = Arrangement.spacedBy(18.dp)
+                    ) {
+                        Column(
+                            modifier = Modifier.weight(1f).verticalScroll(rememberScrollState()),
+                            verticalArrangement = Arrangement.spacedBy(18.dp)
+                        ) {
+                            renderStageContent(Modifier.fillMaxSize())
+                        }
+                    }
                 }
             }
         }
@@ -255,16 +231,38 @@ fun FlowScreen(
 @Composable
 private fun FlowTopHeader(
     title: String,
-    subtitle: String
+    subtitle: String,
+    currentStage: KioskFlowStage,
+    stageSecondsLeft: Int
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.Start,
+        horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
         Column {
             Text(text = title, style = MaterialTheme.typography.titleLarge, color = InkRose)
             Text(text = subtitle, style = MaterialTheme.typography.bodyMedium, color = SoftText)
+        }
+
+        if (currentStage != KioskFlowStage.Printing) {
+            Box(
+                modifier = Modifier
+                    .size(60.dp)
+                    .background(
+                        brush = Brush.verticalGradient(
+                            colors = listOf(Color(0xFFFFC1D8), Color(0xFFFF7EAC))
+                        ),
+                        shape = CircleShape
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "${stageSecondsLeft}",
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+                    color = Color.White
+                )
+            }
         }
     }
 }
@@ -331,25 +329,10 @@ private fun StageBody(
     onSelectStripSize: (StripSize) -> Unit,
     onContinueStripSize: () -> Unit,
     onLoadStripLayout: (StripLayout?) -> Unit,
-    onSelectTemplate: (TemplateOption) -> Unit,
-    onContinueTemplate: () -> Unit,
-    onSetBrushTool: (BrushTool) -> Unit,
-    onSetBrushColor: (Long) -> Unit,
-    onSetBrushSize: (Float) -> Unit,
-    onStartStroke: (Float, Float) -> Unit,
-    onAddStrokePoint: (Float, Float) -> Unit,
-    onContinueDrawing: () -> Unit,
-    onAddSticker: (StickerOption) -> Unit,
-    onSelectSticker: (String) -> Unit,
-    onMoveSticker: (Float, Float) -> Unit,
-    onScaleSticker: (Float) -> Unit,
-    onRotateSticker: (Float) -> Unit,
-    onDuplicateSticker: () -> Unit,
-    onDeleteSticker: () -> Unit,
-    onContinueStickers: () -> Unit,
     onSelectAssignedFrame: (Int) -> Unit,
+    onRemoveFrame: (Int) -> Unit,
     onSelectCapturedPhoto: (Int) -> Unit,
-    onUpdatePhotoAssignmentTransform: (Int, Float, Float, Float) -> Unit,
+    onUpdatePhotoAssignmentTransform: (Int, Float, Float, Float, Float) -> Unit,
     onResetPhotoAssignmentTransform: (Int) -> Unit,
     onShuffleAssignment: () -> Unit,
     onResetAssignment: () -> Unit,
@@ -391,6 +374,7 @@ private fun StageBody(
                         onContinue = onContinueFromPhotoAssignment,
                         onLoadStripLayout = onLoadStripLayout,
                         onSelectAssignedFrame = onSelectAssignedFrame,
+                        onRemoveFrame = onRemoveFrame,
                         onSelectCapturedPhoto = onSelectCapturedPhoto,
                         onUpdatePhotoAssignmentTransform = onUpdatePhotoAssignmentTransform,
                         onResetPhotoAssignmentTransform = onResetPhotoAssignmentTransform,
@@ -399,9 +383,7 @@ private fun StageBody(
                         onAutoFillAssignment = onAutoFillAssignment
                     )
                     KioskFlowStage.StripSize -> FlowStripSizeStage(uiState, onSelectStripSize, onContinueStripSize)
-                    KioskFlowStage.TemplateGallery -> FlowTemplateStage(uiState, onSelectTemplate, onContinueTemplate)
-                    KioskFlowStage.Drawing -> FlowDrawingStage(uiState, onSetBrushTool, onSetBrushColor, onSetBrushSize, onStartStroke, onAddStrokePoint, onContinueDrawing)
-                    KioskFlowStage.Stickers -> FlowStickerStage(uiState, onAddSticker, onSelectSticker, onMoveSticker, onScaleSticker, onRotateSticker, onDuplicateSticker, onDeleteSticker, onContinueStickers)
+                    // Template, Drawing, and Sticker stages removed — advance directly to Preview
                     KioskFlowStage.Preview -> FlowPreviewStage(uiState, onBeginPrinting, onReturnToLanding)
                     KioskFlowStage.Printing -> FlowPrintingStage(uiState, onReturnToLanding)
                     KioskFlowStage.Qr -> FlowQrStage(uiState, onReturnToLanding)

@@ -1,5 +1,6 @@
 package com.zcamstudio.kawaiipb.feature.admin.presentation
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -17,17 +18,33 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Slider
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import com.zcamstudio.kawaiipb.core.designsystem.CherryPink
+import kotlin.math.roundToInt
 import com.zcamstudio.kawaiipb.core.designsystem.InkRose
 import com.zcamstudio.kawaiipb.core.designsystem.KawaiiBackdrop
 import com.zcamstudio.kawaiipb.core.designsystem.KawaiiCard
@@ -48,16 +65,27 @@ import com.zcamstudio.kawaiipb.domain.model.ChartPoint
 import com.zcamstudio.kawaiipb.domain.model.RankedItem
 import com.zcamstudio.kawaiipb.domain.model.StatusBadge
 
-private val AdminSections = listOf("Dashboard", "Templates", "Stickers", "Camera", "Printer", "Storage", "Settings", "Logs")
+private val AdminSections = listOf("Dashboard", "Camera", "Printer", "Storage", "Settings", "Logs")
 
 @Composable
 fun AdminScreen(
     uiState: AdminUiState,
     onSectionSelected: (String) -> Unit,
+    onTimerSettingChanged: (String, Int) -> Unit,
+    onCameraSelectionChanged: (String, String) -> Unit,
+    onSaveTimerSettings: () -> Unit,
+    onResetTimerSettings: () -> Unit,
     onBackToLanding: () -> Unit
 ) {
     val layoutMode = rememberKioskLayoutMode()
     val isPortrait = layoutMode == KioskLayoutMode.Portrait
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    LaunchedEffect(uiState.statusMessage) {
+        uiState.statusMessage?.let { message ->
+            snackbarHostState.showSnackbar(message)
+        }
+    }
 
     KawaiiBackdrop(modifier = Modifier.fillMaxSize())
 
@@ -69,45 +97,87 @@ fun AdminScreen(
     }
 
     val summary = uiState.summary
+    val cameraOptions = listOf(
+        CameraDeviceOption(id = "front", label = "Front Camera", isExternal = false),
+        CameraDeviceOption(id = "rear", label = "Rear Camera", isExternal = false),
+        CameraDeviceOption(id = "external", label = "External Camera", isExternal = true)
+    )
 
-    if (isPortrait) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(20.dp),
-            verticalArrangement = Arrangement.spacedBy(20.dp)
-        ) {
-            AdminSectionTabs(
-                selectedSection = uiState.selectedSection,
-                onSectionSelected = onSectionSelected,
-                onBackToLanding = onBackToLanding
-            )
-            PortraitDashboardContent(summary = summary)
-        }
-    } else {
-        Row(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(28.dp),
-            horizontalArrangement = Arrangement.spacedBy(24.dp)
-        ) {
-            LandscapeSidebar(
-                selectedSection = uiState.selectedSection,
-                onSectionSelected = onSectionSelected,
-                onBackToLanding = onBackToLanding
-            )
-
+    Box(modifier = Modifier.fillMaxSize()) {
+        if (isPortrait) {
             Column(
                 modifier = Modifier
-                    .weight(1f)
                     .fillMaxSize()
-                    .verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(24.dp)
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 10.dp, vertical = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                LandscapeDashboardContent(summary = summary)
+                AdminSectionTabs(
+                    selectedSection = uiState.selectedSection,
+                    onSectionSelected = onSectionSelected,
+                    onBackToLanding = onBackToLanding
+                )
+                if (uiState.selectedSection == "Settings") {
+                    TimerSettingsCard(
+                        uiState = uiState,
+                        onTimerSettingChanged = onTimerSettingChanged,
+                        onSaveTimerSettings = onSaveTimerSettings,
+                        onResetTimerSettings = onResetTimerSettings
+                    )
+                } else if (uiState.selectedSection == "Camera") {
+                    CameraSettingsCard(
+                        uiState = uiState,
+                        cameraOptions = cameraOptions,
+                        onCameraSelectionChanged = onCameraSelectionChanged
+                    )
+                } else {
+                    PortraitDashboardContent(summary = summary)
+                }
+            }
+        } else {
+            Row(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 10.dp, vertical = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                LandscapeSidebar(
+                    selectedSection = uiState.selectedSection,
+                    onSectionSelected = onSectionSelected,
+                    onBackToLanding = onBackToLanding
+                )
+
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxSize()
+                        .verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(24.dp)
+                ) {
+                    if (uiState.selectedSection == "Settings") {
+                        TimerSettingsCard(
+                            uiState = uiState,
+                            onTimerSettingChanged = onTimerSettingChanged,
+                            onSaveTimerSettings = onSaveTimerSettings,
+                            onResetTimerSettings = onResetTimerSettings
+                        )
+                    } else if (uiState.selectedSection == "Camera") {
+                        CameraSettingsCard(
+                            uiState = uiState,
+                            cameraOptions = cameraOptions,
+                            onCameraSelectionChanged = onCameraSelectionChanged
+                        )
+                    } else {
+                        LandscapeDashboardContent(summary = summary)
+                    }
+                }
             }
         }
+
+        SnackbarHost(
+            hostState = snackbarHostState,
+            modifier = Modifier.align(Alignment.BottomCenter)
+        )
     }
 }
 
@@ -118,35 +188,33 @@ private fun LandscapeSidebar(
     onBackToLanding: () -> Unit
 ) {
     val sections = AdminSections
-    KawaiiCard(modifier = Modifier.width(260.dp)) {
-        Column(
-            modifier = Modifier.padding(20.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
-        ) {
-            KawaiiSectionTitle(title = "Admin Panel", subtitle = "Local kiosk control")
-            Spacer(modifier = Modifier.height(6.dp))
-            sections.forEach { section ->
-                val isSelected = section == selectedSection
-                Surface(
-                    shape = MaterialTheme.shapes.medium,
-                    color = if (isSelected) CherryPink.copy(alpha = 0.18f) else Color.Transparent,
-                    border = androidx.compose.foundation.BorderStroke(1.dp, if (isSelected) CherryPink else LineRose)
-                ) {
-                    Text(
-                        text = section,
-                        modifier = Modifier
-                            .clickable { onSectionSelected(section) }
-                            .fillMaxWidth()
-                            .padding(vertical = 12.dp, horizontal = 14.dp),
-                        style = MaterialTheme.typography.titleSmall,
-                        color = InkRose
-                    )
-                }
+    Column(
+        modifier = Modifier.width(200.dp).padding(12.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        KawaiiSectionTitle(title = "Admin Panel", subtitle = "Local kiosk control")
+        Spacer(modifier = Modifier.height(6.dp))
+        sections.forEach { section ->
+            val isSelected = section == selectedSection
+            Surface(
+                shape = MaterialTheme.shapes.medium,
+                color = if (isSelected) CherryPink.copy(alpha = 0.18f) else Color.Transparent,
+                border = androidx.compose.foundation.BorderStroke(1.dp, if (isSelected) CherryPink else LineRose)
+            ) {
+                Text(
+                    text = section,
+                    modifier = Modifier
+                        .clickable { onSectionSelected(section) }
+                        .fillMaxWidth()
+                        .padding(vertical = 12.dp, horizontal = 14.dp),
+                    style = MaterialTheme.typography.titleSmall,
+                    color = InkRose
+                )
             }
-            Spacer(modifier = Modifier.height(8.dp))
-            KawaiiSecondaryButton(text = "Back to Landing", modifier = Modifier.fillMaxWidth()) {
-                onBackToLanding()
-            }
+        }
+        Spacer(modifier = Modifier.height(8.dp))
+        KawaiiSecondaryButton(text = "Back to Landing", modifier = Modifier.fillMaxWidth()) {
+            onBackToLanding()
         }
     }
 }
@@ -158,39 +226,259 @@ private fun AdminSectionTabs(
     onBackToLanding: () -> Unit
 ) {
     val sections = AdminSections
-    KawaiiCard(modifier = Modifier.fillMaxWidth()) {
-        Column(
-            modifier = Modifier.padding(20.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+    Column(
+        modifier = Modifier.fillMaxWidth().padding(12.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        KawaiiSectionTitle(
+            title = "Admin Panel",
+            subtitle = "Responsive layout for portrait and landscape kiosks"
+        )
+        Row(
+            modifier = Modifier.horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            KawaiiSectionTitle(
-                title = "Admin Panel",
-                subtitle = "Responsive layout for portrait and landscape kiosks"
-            )
+            sections.forEach { section ->
+                val isSelected = section == selectedSection
+                Surface(
+                    shape = MaterialTheme.shapes.large,
+                    color = if (isSelected) CherryPink.copy(alpha = 0.18f) else Color.Transparent,
+                    border = androidx.compose.foundation.BorderStroke(1.dp, if (isSelected) CherryPink else LineRose)
+                ) {
+                    Text(
+                        text = section,
+                        modifier = Modifier
+                            .clickable { onSectionSelected(section) }
+                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                        style = MaterialTheme.typography.titleSmall,
+                        color = InkRose
+                    )
+                }
+            }
+        }
+        KawaiiSecondaryButton(text = "Back to Landing", modifier = Modifier.fillMaxWidth()) {
+            onBackToLanding()
+        }
+    }
+}
+
+@Composable
+private fun TimerSettingsCard(
+    uiState: AdminUiState,
+    onTimerSettingChanged: (String, Int) -> Unit,
+    onSaveTimerSettings: () -> Unit,
+    onResetTimerSettings: () -> Unit
+) {
+    var showResetConfirm by remember { mutableStateOf(false) }
+
+    KawaiiCard(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
             Row(
-                modifier = Modifier.horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                sections.forEach { section ->
-                    val isSelected = section == selectedSection
-                    Surface(
-                        shape = MaterialTheme.shapes.large,
-                        color = if (isSelected) CherryPink.copy(alpha = 0.18f) else Color.Transparent,
-                        border = androidx.compose.foundation.BorderStroke(1.dp, if (isSelected) CherryPink else LineRose)
+                KawaiiSectionTitle(title = "Session Timers", subtitle = "Adjust the default flow timings")
+                KawaiiSecondaryButton(text = "Reset Defaults") {
+                    showResetConfirm = true
+                }
+            }
+            val timerFields = listOf(
+                Triple("Camera Mode", "cameraMode", 5f..240f to uiState.cameraModeDuration),
+                Triple("Capture", "capture", 5f..240f to uiState.captureDuration),
+                Triple("Photo Assignment", "photoAssignment", 5f..240f to uiState.photoAssignmentDuration),
+                Triple("Strip Size", "stripSize", 5f..240f to uiState.stripSizeDuration),
+                Triple("Preview", "preview", 5f..240f to uiState.previewDuration),
+                Triple("QR Code", "qrCode", 5f..240f to uiState.qrCodeDuration),
+                Triple("Camera Settings", "preCaptureDelay", 0f..10f to uiState.preCaptureDelaySeconds)
+            )
+            timerFields.forEach { (label, key, valuePair) ->
+                val (range, currentValue) = valuePair
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(
-                            text = section,
-                            modifier = Modifier
-                                .clickable { onSectionSelected(section) }
-                                .padding(horizontal = 16.dp, vertical = 12.dp),
-                            style = MaterialTheme.typography.titleSmall,
-                            color = InkRose
+                        Text(text = label, style = MaterialTheme.typography.titleSmall, color = InkRose)
+                        Text(text = "$currentValue sec", style = MaterialTheme.typography.bodyMedium, color = SoftText)
+                    }
+                    if (key == "preCaptureDelay") {
+                        val sliderValue = when (currentValue) {
+                            0 -> 0f
+                            5 -> 1f
+                            else -> 2f
+                        }
+                        Column(modifier = Modifier.fillMaxWidth()) {
+                            Slider(
+                                value = sliderValue,
+                                onValueChange = { newValue ->
+                                    val snappedValue = when {
+                                        newValue <= 0.5f -> 0
+                                        newValue <= 1.5f -> 5
+                                        else -> 10
+                                    }
+                                    onTimerSettingChanged(key, snappedValue)
+                                },
+                                valueRange = 0f..2f,
+                                steps = 2,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text(text = "0s", style = MaterialTheme.typography.labelMedium, color = SoftText)
+                                Text(text = "5s", style = MaterialTheme.typography.labelMedium, color = SoftText)
+                                Text(text = "10s", style = MaterialTheme.typography.labelMedium, color = SoftText)
+                            }
+                        }
+                    } else {
+                        Slider(
+                            value = currentValue.toFloat(),
+                            onValueChange = { newValue ->
+                                onTimerSettingChanged(key, newValue.roundToInt())
+                            },
+                            valueRange = range,
+                            steps = ((range.endInclusive - range.start).toInt() / 5) - 1,
+                            modifier = Modifier.fillMaxWidth()
                         )
                     }
                 }
             }
-            KawaiiSecondaryButton(text = "Back to Landing", modifier = Modifier.fillMaxWidth()) {
-                onBackToLanding()
+
+            KawaiiPrimaryButton(
+                text = "Save",
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                onSaveTimerSettings()
+            }
+        }
+    }
+
+    if (showResetConfirm) {
+        AlertDialog(
+            onDismissRequest = { showResetConfirm = false },
+            title = { Text("Reset timer defaults?") },
+            text = { Text("This will restore the built-in timer values for this session flow.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    onResetTimerSettings()
+                    showResetConfirm = false
+                }) {
+                    Text("Reset")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showResetConfirm = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+}
+
+@Composable
+private fun CameraSettingsCard(
+    uiState: AdminUiState,
+    cameraOptions: List<CameraDeviceOption>,
+    onCameraSelectionChanged: (String, String) -> Unit
+) {
+    KawaiiCard(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(20.dp)) {
+            KawaiiSectionTitle(title = "Camera Assignment", subtitle = "Pick the camera source for each booth mode")
+            Text(
+                text = "Select the camera used for Classic Photo Booth and Elevator View. External devices will be used when available.",
+                style = MaterialTheme.typography.bodySmall,
+                color = SoftText
+            )
+
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = MaterialTheme.shapes.medium,
+                color = MintFoam.copy(alpha = 0.14f)
+            ) {
+                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                    CameraModeDropdown(
+                        title = "Classic Photo Booth",
+                        selectedId = uiState.classicCameraSelectionId,
+                        options = cameraOptions,
+                        onSelectionChanged = { cameraId -> onCameraSelectionChanged("classic", cameraId) }
+                    )
+                    CameraModeDropdown(
+                        title = "Elevator View",
+                        selectedId = uiState.elevatorCameraSelectionId,
+                        options = cameraOptions,
+                        onSelectionChanged = { cameraId -> onCameraSelectionChanged("elevator", cameraId) }
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun CameraModeDropdown(
+    title: String,
+    selectedId: String,
+    options: List<CameraDeviceOption>,
+    onSelectionChanged: (String) -> Unit
+) {
+    var expanded by remember { mutableStateOf(false) }
+    var textFieldWidth by remember { mutableStateOf(0) }
+    val selectedOption = options.firstOrNull { it.id == selectedId } ?: options.first()
+    val density = LocalDensity.current
+
+    Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Text(text = title, style = MaterialTheme.typography.titleSmall, color = InkRose)
+
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .onGloballyPositioned { coordinates ->
+                    textFieldWidth = coordinates.size.width
+                }
+                .clickable { expanded = true },
+            shape = MaterialTheme.shapes.small,
+            color = Color.White.copy(alpha = 0.08f)
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 14.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column {
+                    Text(text = selectedOption.label, style = MaterialTheme.typography.bodyLarge, color = InkRose)
+                    if (selectedOption.isExternal) {
+                        Text(text = "External device", style = MaterialTheme.typography.bodySmall, color = SoftText)
+                    }
+                }
+                Text(text = "▼", style = MaterialTheme.typography.titleLarge, color = InkRose)
+            }
+        }
+
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+            modifier = Modifier.width(with(density) { textFieldWidth.toDp() })
+        ) {
+            options.forEach { option ->
+                DropdownMenuItem(
+                    text = {
+                        Column {
+                            Text(option.label, color = InkRose)
+                            if (option.isExternal) {
+                                Text("Use an attached external camera", style = MaterialTheme.typography.bodySmall, color = SoftText)
+                            }
+                        }
+                    },
+                    onClick = {
+                        onSelectionChanged(option.id)
+                        expanded = false
+                    }
+                )
             }
         }
     }
@@ -202,30 +490,14 @@ private fun LandscapeDashboardContent(summary: AdminDashboardSummary) {
     LandscapeMetricRow(metrics = summary.metrics)
     Row(horizontalArrangement = Arrangement.spacedBy(20.dp), modifier = Modifier.fillMaxWidth()) {
         TrendCard(points = summary.sessionsTrend, modifier = Modifier.weight(1.35f))
-        RankingCard(
-            title = "Top Templates",
-            items = summary.topTemplates,
-            accent = SoftLavender,
-            modifier = Modifier.weight(1f)
-        )
+        // Templates removed
     }
     Row(horizontalArrangement = Arrangement.spacedBy(20.dp), modifier = Modifier.fillMaxWidth()) {
-        RankingCard(
-            title = "Most Used Stickers",
-            items = summary.topStickers,
-            accent = MintFoam,
-            modifier = Modifier.weight(1f)
-        )
+        // Stickers removed
         StatusCard(statuses = summary.statuses, modifier = Modifier.weight(1f))
     }
     Row(horizontalArrangement = Arrangement.spacedBy(20.dp), modifier = Modifier.fillMaxWidth()) {
-        MiniModuleCard(
-            title = "Templates Manager",
-            subtitle = "Import, duplicate, version, and enable template assets.",
-            primary = "Import Template",
-            secondary = "Open Library",
-            modifier = Modifier.weight(1f)
-        )
+        // Templates manager removed
         MiniModuleCard(
             title = "Camera & Printer",
             subtitle = "Local hardware controls, presets, and test actions.",
@@ -241,26 +513,9 @@ private fun PortraitDashboardContent(summary: AdminDashboardSummary) {
     DashboardHeader()
     PortraitMetricGrid(metrics = summary.metrics)
     TrendCard(points = summary.sessionsTrend, modifier = Modifier.fillMaxWidth())
-    RankingCard(
-        title = "Top Templates",
-        items = summary.topTemplates,
-        accent = SoftLavender,
-        modifier = Modifier.fillMaxWidth()
-    )
-    RankingCard(
-        title = "Most Used Stickers",
-        items = summary.topStickers,
-        accent = MintFoam,
-        modifier = Modifier.fillMaxWidth()
-    )
+    // Templates and Stickers removed from admin UI
     StatusCard(statuses = summary.statuses, modifier = Modifier.fillMaxWidth())
-    MiniModuleCard(
-        title = "Templates Manager",
-        subtitle = "Import, duplicate, version, and enable template assets.",
-        primary = "Import Template",
-        secondary = "Open Library",
-        modifier = Modifier.fillMaxWidth()
-    )
+    // Templates manager removed
     MiniModuleCard(
         title = "Camera & Printer",
         subtitle = "Local hardware controls, presets, and test actions.",

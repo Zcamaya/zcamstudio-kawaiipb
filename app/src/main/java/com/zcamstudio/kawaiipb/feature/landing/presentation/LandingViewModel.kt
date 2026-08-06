@@ -3,7 +3,6 @@ package com.zcamstudio.kawaiipb.feature.landing.presentation
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.zcamstudio.kawaiipb.domain.usecase.GetLandingConfigUseCase
-import com.zcamstudio.kawaiipb.domain.usecase.ValidateAdminPinUseCase
 import com.zcamstudio.kawaiipb.services.logging.SessionLogService
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -16,7 +15,6 @@ import kotlinx.coroutines.launch
 
 class LandingViewModel(
     private val getLandingConfigUseCase: GetLandingConfigUseCase,
-    private val validateAdminPinUseCase: ValidateAdminPinUseCase,
     private val sessionLogService: SessionLogService
 ) : ViewModel() {
 
@@ -43,48 +41,14 @@ class LandingViewModel(
     }
 
     fun onLogoTapped() {
-        _uiState.update { state ->
-            val nextCount = state.logoTapCount + 1
-            state.copy(
-                logoTapCount = nextCount,
-                showAdminPinDialog = nextCount >= 7,
-                pinError = null
-            )
-        }
+        val nextCount = _uiState.value.logoTapCount + 1
+        _uiState.update { it.copy(logoTapCount = nextCount, pinError = null) }
     }
 
-    fun onPinChanged(value: String) {
-        _uiState.update { it.copy(pinInput = value.take(4), pinError = null) }
-    }
-
-    fun onPinDialogDismissed() {
-        _uiState.update {
-            it.copy(
-                showAdminPinDialog = false,
-                logoTapCount = 0,
-                pinInput = "",
-                pinError = null
-            )
-        }
-    }
-
-    fun onPinSubmitted() {
+    fun onAdminUnlockConfirmed() {
         viewModelScope.launch {
-            val currentPin = uiState.value.pinInput
-            val isValid = validateAdminPinUseCase(currentPin)
-            if (isValid) {
-                _uiState.update {
-                    it.copy(
-                        showAdminPinDialog = false,
-                        logoTapCount = 0,
-                        pinInput = "",
-                        pinError = null
-                    )
-                }
-                _effects.emit(LandingEffect.NavigateToAdmin)
-            } else {
-                _uiState.update { it.copy(pinError = "Invalid PIN, please try again.") }
-            }
+            _uiState.update { it.copy(logoTapCount = 0) }
+            _effects.emit(LandingEffect.NavigateToAdmin)
         }
     }
 

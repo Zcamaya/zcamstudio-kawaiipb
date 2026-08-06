@@ -12,7 +12,7 @@ import com.zcamstudio.kawaiipb.domain.model.KioskFlowStage
 import com.zcamstudio.kawaiipb.domain.model.LayoutBrandingArea
 import com.zcamstudio.kawaiipb.domain.model.LayoutSafeArea
 import com.zcamstudio.kawaiipb.domain.model.StripLayout
-import com.zcamstudio.kawaiipb.domain.model.TemplateOption
+import com.zcamstudio.kawaiipb.domain.model.StripSize
 import com.zcamstudio.kawaiipb.domain.model.TemplatePhotoSlot
 import org.json.JSONArray
 import org.json.JSONObject
@@ -28,17 +28,26 @@ private val capturePhotoCache = object : LruCache<String, ImageBitmap>(CapturePh
     override fun sizeOf(key: String, value: ImageBitmap): Int = 1
 }
 
-fun stageDuration(stage: KioskFlowStage): Int = when (stage) {
-    KioskFlowStage.CameraMode -> 20
-    KioskFlowStage.Capture -> 90
-    KioskFlowStage.PhotoAssignment -> 25
-    KioskFlowStage.StripSize -> 20
-    KioskFlowStage.TemplateGallery -> 20
-    KioskFlowStage.Drawing -> 120
-    KioskFlowStage.Stickers -> 60
-    KioskFlowStage.Preview -> 25
+fun stageDuration(stage: KioskFlowStage, settings: FlowTimerSettings = FlowTimerSettings()): Int = when (stage) {
+    KioskFlowStage.CameraMode -> settings.cameraModeDuration
+    KioskFlowStage.Capture -> settings.captureDuration
+    KioskFlowStage.PhotoAssignment -> settings.photoAssignmentDuration
+    KioskFlowStage.StripSize -> settings.stripSizeDuration
+    KioskFlowStage.Preview -> settings.previewDuration
     KioskFlowStage.Printing -> 0
-    KioskFlowStage.Qr -> 300
+    KioskFlowStage.Qr -> settings.qrCodeDuration
+}
+
+fun stripSizePreviewAssetPath(size: StripSize): String = when (size) {
+    StripSize.TwoByFour -> "layouts/strip_layout/2x4.png"
+    StripSize.TwoByThree -> "layouts/strip_layout/2x3.png"
+    StripSize.TwoByTwo -> "layouts/strip_layout/2x2.png"
+}
+
+fun stripSizeLayoutAssetPath(size: StripSize): String = when (size) {
+    StripSize.TwoByFour -> "layouts/strip_2x4.json"
+    StripSize.TwoByThree -> "layouts/strip_2x3.json"
+    StripSize.TwoByTwo -> "layouts/strip_2x2.json"
 }
 
 fun flowStageTitle(stage: KioskFlowStage): String = when (stage) {
@@ -46,9 +55,6 @@ fun flowStageTitle(stage: KioskFlowStage): String = when (stage) {
     KioskFlowStage.Capture -> "Capture Session"
     KioskFlowStage.PhotoAssignment -> "Photo Assignment"
     KioskFlowStage.StripSize -> "Strip Size"
-    KioskFlowStage.TemplateGallery -> "Template Gallery"
-    KioskFlowStage.Drawing -> "Drawing Editor"
-    KioskFlowStage.Stickers -> "Sticker Editor"
     KioskFlowStage.Preview -> "Preview"
     KioskFlowStage.Printing -> "Printing"
     KioskFlowStage.Qr -> "QR Code"
@@ -59,9 +65,6 @@ fun flowStageSubtitle(stage: KioskFlowStage): String = when (stage) {
     KioskFlowStage.Capture -> "Eight automatic shots power the photo strip."
     KioskFlowStage.PhotoAssignment -> "Assign your captured images"
     KioskFlowStage.StripSize -> "Choose the strip layout."
-    KioskFlowStage.TemplateGallery -> "Pick a frame or custom layout."
-    KioskFlowStage.Drawing -> "Draw with pen, brush, or eraser."
-    KioskFlowStage.Stickers -> "Place, move, scale, and rotate stickers."
     KioskFlowStage.Preview -> "Check the final composition."
     KioskFlowStage.Printing -> "Save the rendered strip as a PDF."
     KioskFlowStage.Qr -> "Scan to download before the session expires."
@@ -88,13 +91,10 @@ fun advanceFlowStateForTick(
 
     return if (stageSecondsLeft == 0) {
         when (advancedState.stage) {
-            KioskFlowStage.CameraMode -> advancedState.copy(stage = KioskFlowStage.Capture, stageSecondsLeft = stageDuration(KioskFlowStage.Capture), captureShotCountdown = 0, isCaptureCountdownActive = false, summaryMessage = "Capture session ready")
-            KioskFlowStage.Capture -> advancedState.copy(stage = KioskFlowStage.StripSize, stageSecondsLeft = stageDuration(KioskFlowStage.StripSize), captureShotCountdown = 0, isCaptureCountdownActive = false, isCaptureInProgress = false, summaryMessage = "Time expired, choose strip size")
-            KioskFlowStage.PhotoAssignment -> advancedState.copy(stage = KioskFlowStage.TemplateGallery, stageSecondsLeft = stageDuration(KioskFlowStage.TemplateGallery), summaryMessage = "Time expired, choose a template")
-            KioskFlowStage.StripSize -> advancedState.copy(stage = KioskFlowStage.PhotoAssignment, stageSecondsLeft = stageDuration(KioskFlowStage.PhotoAssignment), summaryMessage = "Time expired, assign photos")
-            KioskFlowStage.TemplateGallery -> advancedState.copy(stage = KioskFlowStage.Drawing, stageSecondsLeft = stageDuration(KioskFlowStage.Drawing), summaryMessage = "Start drawing")
-            KioskFlowStage.Drawing -> advancedState.copy(stage = KioskFlowStage.Stickers, stageSecondsLeft = stageDuration(KioskFlowStage.Stickers), summaryMessage = "Add stickers")
-            KioskFlowStage.Stickers -> advancedState.copy(stage = KioskFlowStage.Preview, stageSecondsLeft = stageDuration(KioskFlowStage.Preview), summaryMessage = "Preview ready")
+            KioskFlowStage.CameraMode -> advancedState.copy(stage = KioskFlowStage.Capture, stageSecondsLeft = stageDuration(KioskFlowStage.Capture, advancedState.flowTimerSettings), captureShotCountdown = 0, isCaptureCountdownActive = false, summaryMessage = "Capture session ready")
+            KioskFlowStage.Capture -> advancedState.copy(stage = KioskFlowStage.StripSize, stageSecondsLeft = stageDuration(KioskFlowStage.StripSize, advancedState.flowTimerSettings), captureShotCountdown = 0, isCaptureCountdownActive = false, isCaptureInProgress = false, summaryMessage = "Time expired, choose strip size")
+            KioskFlowStage.PhotoAssignment -> advancedState.copy(stage = KioskFlowStage.Preview, stageSecondsLeft = stageDuration(KioskFlowStage.Preview, advancedState.flowTimerSettings), summaryMessage = "Time expired, review the strip")
+            KioskFlowStage.StripSize -> advancedState.copy(stage = KioskFlowStage.PhotoAssignment, stageSecondsLeft = stageDuration(KioskFlowStage.PhotoAssignment, advancedState.flowTimerSettings), summaryMessage = "Time expired, assign photos")
             KioskFlowStage.Preview -> advancedState.copy(stage = KioskFlowStage.Printing, stageSecondsLeft = 0, summaryMessage = "Saving export", printProgress = 0f)
             KioskFlowStage.Printing -> advancedState.copy(stage = KioskFlowStage.Printing, stageSecondsLeft = 0, printStatus = advancedState.printStatus, summaryMessage = advancedState.summaryMessage)
             KioskFlowStage.Qr -> advancedState
@@ -170,9 +170,6 @@ fun resolveLayoutAssetPath(layout: StripLayout?, fallbackAssetPath: String = "la
         ?: fallbackAssetPath.takeIf { it.isNotBlank() }
 }
 
-fun resolveTemplateOverlayAssetPath(templateId: String?): String? {
-    return templateId?.trim()?.takeIf { it.isNotBlank() }?.let { "templates/$it.png" }
-}
 
 fun loadAssetImage(context: Context, assetPath: String): ImageBitmap? {
     if (assetPath.isBlank()) return null
@@ -187,9 +184,7 @@ fun loadAssetImage(context: Context, assetPath: String): ImageBitmap? {
     }
 }
 
-fun loadTemplateOverlay(context: Context, template: TemplateOption): ImageBitmap? {
-    return loadAssetImage(context, "templates/${template.id}.png")
-}
+// Template overlay functions removed
 
 fun loadCapturePhoto(imagePath: String?): ImageBitmap? {
     if (imagePath == null) return null

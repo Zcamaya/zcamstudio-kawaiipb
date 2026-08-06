@@ -12,7 +12,6 @@ import com.zcamstudio.kawaiipb.domain.model.StripSize
 import com.zcamstudio.kawaiipb.feature.flow.presentation.FlowUiState
 import com.zcamstudio.kawaiipb.feature.flow.presentation.PhotoTransform
 import com.zcamstudio.kawaiipb.feature.flow.presentation.resolveLayoutAssetPath
-import com.zcamstudio.kawaiipb.feature.flow.presentation.resolveTemplateOverlayAssetPath
 import com.zcamstudio.kawaiipb.services.storage.KawaiiStorageService
 import kotlin.math.max
 import kotlin.math.min
@@ -213,14 +212,7 @@ object PrintComposer {
             }
         }
 
-        val overlayAssetPath = resolveTemplateOverlayAssetPath(uiState.selectedTemplate?.id)
-        val overlayBitmap = overlayAssetPath?.let { storageService.openAsset(it) }?.use { stream ->
-            BitmapFactory.decodeStream(stream)
-        }
-        if (overlayBitmap != null) {
-            val destRect = RectF(0f, 0f, outputWidth.toFloat(), outputHeight.toFloat())
-            canvas.drawBitmap(overlayBitmap, null, destRect, null)
-        }
+        // template overlays removed
 
         return savePrintFile(storageService, uiState.sessionId, bitmap)
     }

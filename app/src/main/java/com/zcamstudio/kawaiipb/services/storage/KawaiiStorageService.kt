@@ -6,11 +6,14 @@ import android.net.Uri
 import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
+import com.zcamstudio.kawaiipb.domain.model.CameraMode
+import com.zcamstudio.kawaiipb.feature.flow.presentation.FlowTimerSettings
 import java.io.File
 import java.io.FilterOutputStream
 import java.io.FileOutputStream
 import java.io.InputStream
 import java.io.OutputStream
+import java.util.Properties
 
 class KawaiiStorageService(private val context: Context) {
     private val externalBaseDir: File? = context.getExternalFilesDir(null)
@@ -21,29 +24,106 @@ class KawaiiStorageService(private val context: Context) {
     private val sessionsRootDir = File(internalRootDir, "sessions")
     private val exportsFallbackDir = File(internalRootDir, "exports")
     private val stickersFallbackDir = File(internalRootDir, "Stickers")
-    private val templatesFallbackDir = File(internalRootDir, "Templates")
+    // templates removed
     private val layoutsFallbackDir = File(internalRootDir, "Layouts")
     private val privateThumbnailsDir = File(internalRootDir, "thumbnails")
     private val cacheDir = File(internalRootDir, "cache")
     private val logsDir = File(internalRootDir, "logs")
+    private val settingsDir = File(internalRootDir, "settings")
+    private val flowTimerSettingsFile = File(settingsDir, "flow_timer_settings.properties")
+    private val cameraModeSelectionsFile = File(settingsDir, "camera_mode_selections.properties")
 
     // Public-facing work folders are rooted under the device Pictures tree.
     // The PDF export and imported assets are stored in Pictures/KawaiiPB.
     @Suppress("DEPRECATION")
     private val publicPicturesRoot = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES)
     private val publicRootDir = File(publicPicturesRoot, "KawaiiPB")
-    private val publicTemplatesDir = File(publicRootDir, "Templates")
+    // public templates directory removed
     private val publicStickersDir = File(publicRootDir, "Stickers")
     private val publicLayoutsDir = File(publicRootDir, "Layouts")
     private val publicExportsDir = File(publicRootDir, "Exports")
 
     fun initializePublicFolders(): File {
         ensureDirectory(publicRootDir)
-        ensureDirectory(publicTemplatesDir)
+        // templates folder removed from initialization
         ensureDirectory(publicStickersDir)
         ensureDirectory(publicLayoutsDir)
         ensureDirectory(publicExportsDir)
+        ensureDirectory(settingsDir)
         return publicRootDir
+    }
+
+    fun loadFlowTimerSettings(): FlowTimerSettings {
+        if (!flowTimerSettingsFile.exists()) {
+            return FlowTimerSettings()
+        }
+        return flowTimerSettingsFile.inputStream().use { stream ->
+            val properties = Properties().apply { load(stream) }
+            flowTimerSettingsFromMap(properties)
+        }
+    }
+
+    fun saveFlowTimerSettings(settings: FlowTimerSettings) {
+        val properties = flowTimerSettingsToMap(settings)
+        ensureDirectory(settingsDir)
+        flowTimerSettingsFile.outputStream().use { stream ->
+            properties.store(stream, "KawaiiPB flow timer settings")
+        }
+    }
+
+    fun loadCameraModeSelections(): Map<CameraMode, String> {
+        if (!cameraModeSelectionsFile.exists()) {
+            return mapOf(
+                CameraMode.Classic to "front",
+                CameraMode.Elevator to "rear"
+            )
+        }
+        return cameraModeSelectionsFile.inputStream().use { stream ->
+            val properties = Properties().apply { load(stream) }
+            mapOf(
+                CameraMode.Classic to (properties.getProperty("classicCameraSelectionId", "front")
+                    .takeIf { it.isNotBlank() } ?: "front"),
+                CameraMode.Elevator to (properties.getProperty("elevatorCameraSelectionId", "rear")
+                    .takeIf { it.isNotBlank() } ?: "rear")
+            )
+        }
+    }
+
+    fun saveCameraModeSelections(selections: Map<CameraMode, String>) {
+        ensureDirectory(settingsDir)
+        val properties = Properties().apply {
+            setProperty("classicCameraSelectionId", selections[CameraMode.Classic] ?: "front")
+            setProperty("elevatorCameraSelectionId", selections[CameraMode.Elevator] ?: "rear")
+        }
+        cameraModeSelectionsFile.outputStream().use { stream ->
+            properties.store(stream, "KawaiiPB camera mode selections")
+        }
+    }
+
+    companion object {
+        fun flowTimerSettingsToMap(settings: FlowTimerSettings): Properties {
+            return Properties().apply {
+                setProperty("cameraModeDuration", settings.cameraModeDuration.toString())
+                setProperty("captureDuration", settings.captureDuration.toString())
+                setProperty("photoAssignmentDuration", settings.photoAssignmentDuration.toString())
+                setProperty("stripSizeDuration", settings.stripSizeDuration.toString())
+                setProperty("previewDuration", settings.previewDuration.toString())
+                setProperty("qrCodeDuration", settings.qrCodeDuration.toString())
+                setProperty("preCaptureDelaySeconds", settings.preCaptureDelaySeconds.toString())
+            }
+        }
+
+        fun flowTimerSettingsFromMap(properties: Properties): FlowTimerSettings {
+            return FlowTimerSettings(
+                cameraModeDuration = properties.getProperty("cameraModeDuration", "20").toIntOrNull()?.coerceIn(5, 240) ?: 20,
+                captureDuration = properties.getProperty("captureDuration", "90").toIntOrNull()?.coerceIn(5, 240) ?: 90,
+                photoAssignmentDuration = properties.getProperty("photoAssignmentDuration", "25").toIntOrNull()?.coerceIn(5, 240) ?: 25,
+                stripSizeDuration = properties.getProperty("stripSizeDuration", "20").toIntOrNull()?.coerceIn(5, 240) ?: 20,
+                previewDuration = properties.getProperty("previewDuration", "25").toIntOrNull()?.coerceIn(5, 240) ?: 25,
+                qrCodeDuration = properties.getProperty("qrCodeDuration", "30").toIntOrNull()?.coerceIn(5, 240) ?: 30,
+                preCaptureDelaySeconds = properties.getProperty("preCaptureDelaySeconds", "5").toIntOrNull()?.coerceIn(0, 10) ?: 5
+            )
+        }
     }
 
     fun captureFile(sessionId: String, shotNumber: Int): File {
@@ -152,9 +232,7 @@ class KawaiiStorageService(private val context: Context) {
         }
     }
 
-    fun templateDirectory(stripSize: String): File {
-        return ensureDirectory(File(publicTemplatesDir, stripSize))
-    }
+    // templateDirectory removed
 
     fun stickerDirectory(category: String): File {
         return ensureDirectory(File(publicStickersDir, category))
@@ -176,9 +254,7 @@ class KawaiiStorageService(private val context: Context) {
         return ensureDirectory(stickersFallbackDir)
     }
 
-    fun fallbackTemplatesDirectory(): File {
-        return ensureDirectory(templatesFallbackDir)
-    }
+    // fallbackTemplatesDirectory removed
 
     fun fallbackLayoutsDirectory(): File {
         return ensureDirectory(layoutsFallbackDir)

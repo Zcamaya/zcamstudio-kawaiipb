@@ -6,14 +6,11 @@ import com.zcamstudio.kawaiipb.domain.model.BrushTool
 import com.zcamstudio.kawaiipb.domain.model.CameraMode
 import com.zcamstudio.kawaiipb.domain.model.CameraLens
 import com.zcamstudio.kawaiipb.domain.model.CaptureFrame
-import com.zcamstudio.kawaiipb.domain.model.DrawingStroke
 import com.zcamstudio.kawaiipb.domain.model.KioskFlowStage
 import com.zcamstudio.kawaiipb.domain.model.KioskSessionCatalog
-import com.zcamstudio.kawaiipb.domain.model.PlacedSticker
 import com.zcamstudio.kawaiipb.domain.model.PrintStep
-import com.zcamstudio.kawaiipb.domain.model.StickerOption
 import com.zcamstudio.kawaiipb.domain.model.StripSize
-import com.zcamstudio.kawaiipb.domain.model.TemplateOption
+// Template, sticker, and drawing models removed
 import com.zcamstudio.kawaiipb.domain.usecase.GetKioskSessionCatalogUseCase
 import com.zcamstudio.kawaiipb.feature.printing.PrintService
 import com.zcamstudio.kawaiipb.services.logging.SessionLogService
@@ -51,6 +48,8 @@ class FlowViewModel(
     init {
         viewModelScope.launch {
             val catalog = getKioskSessionCatalogUseCase()
+            val savedSettings = storageService.loadFlowTimerSettings()
+            val savedCameraSelections = storageService.loadCameraModeSelections()
             _uiState.update { state ->
                 state.copy(
                     isLoading = false,
@@ -58,11 +57,13 @@ class FlowViewModel(
                     cameraMode = catalog.cameraModes.firstOrNull() ?: CameraMode.Classic,
                     defaultCameraLens = defaultLensForCameraMode(catalog.cameraModes.firstOrNull() ?: CameraMode.Classic),
                     stripSize = catalog.stripSizes.firstOrNull() ?: StripSize.TwoByFour,
-                    selectedTemplate = null,
                     sessionId = sessionId,
                     stage = KioskFlowStage.CameraMode,
-                    stageSecondsLeft = stageDuration(KioskFlowStage.CameraMode),
-                    sessionSecondsLeft = 60 * 30,
+                    flowTimerSettings = savedSettings,
+                    classicCameraSelectionId = savedCameraSelections[CameraMode.Classic] ?: "front",
+                    elevatorCameraSelectionId = savedCameraSelections[CameraMode.Elevator] ?: "rear",
+                    stageSecondsLeft = stageDuration(KioskFlowStage.CameraMode, savedSettings),
+                    sessionSecondsLeft = state.sessionSecondsLeft.coerceAtLeast(60 * 30),
                     summaryMessage = "Choose a camera mode to start the session"
                 )
             }
@@ -96,7 +97,18 @@ class FlowViewModel(
         if (state.isCaptureInProgress || state.isCaptureCountdownActive) return
         if (state.capturedFrames.size >= 8) return
 
-        // For testing: remove the pre-capture countdown and trigger capture immediately
+        val delaySeconds = state.flowTimerSettings.preCaptureDelaySeconds.coerceIn(0, 10)
+        if (delaySeconds > 0) {
+            _uiState.update { current ->
+                current.copy(
+                    isCaptureCountdownActive = true,
+                    captureShotCountdown = delaySeconds,
+                    summaryMessage = "Capturing in $delaySeconds seconds"
+                )
+            }
+            return
+        }
+
         triggerCapture()
     }
 
@@ -173,34 +185,34 @@ class FlowViewModel(
 
     fun selectAssignedFrame(slotIndex: Int) {
         updateUiState stateUpdate@{ state ->
-            val currentlySelected = state.photoAssignmentSelectedSlot
-            val assignmentExists = state.photoAssignmentAssignments.getOrNull(slotIndex) != null
-
-            if (assignmentExists && currentlySelected == null) {
-                val updatedAssignments = state.photoAssignmentAssignments.toMutableList().also {
-                    it[slotIndex] = null
-                }
-                val updatedTransforms = state.photoAssignmentTransforms.toMutableList().also {
-                    it[slotIndex] = PhotoTransform()
-                }
-                return@stateUpdate updatePhotoAssignmentState(
-                    state = state,
-                    assignments = updatedAssignments,
-                    transforms = updatedTransforms,
-                    selectedSlot = null,
-                    showCapturedList = false,
-                    summaryMessage = "Removed photo from frame ${slotIndex + 1}"
-                )
-            }
-
-            val newSelected = if (currentlySelected == slotIndex) null else slotIndex
+            val newSelected = slotIndex
             updatePhotoAssignmentState(
                 state = state,
                 assignments = state.photoAssignmentAssignments,
                 transforms = state.photoAssignmentTransforms,
                 selectedSlot = newSelected,
-                showCapturedList = newSelected != null,
-                summaryMessage = if (newSelected != null) "Choose a captured photo for frame ${newSelected + 1}" else "Tap a frame to assign a photo"
+                showCapturedList = true,
+                summaryMessage = "Adjust photo in frame ${newSelected + 1}"
+            )
+        }
+    }
+
+    fun removePhotoFromFrame(slotIndex: Int) {
+        _uiState.update { state ->
+            if (slotIndex !in state.photoAssignmentAssignments.indices) return@update state
+            val updatedAssignments = state.photoAssignmentAssignments.toMutableList().also {
+                it[slotIndex] = null
+            }
+            val updatedTransforms = state.photoAssignmentTransforms.toMutableList().also {
+                if (slotIndex in it.indices) it[slotIndex] = PhotoTransform(PhotoAssignmentInitialScale)
+            }
+            updatePhotoAssignmentState(
+                state = state,
+                assignments = updatedAssignments,
+                transforms = updatedTransforms,
+                selectedSlot = state.photoAssignmentSelectedSlot?.takeIf { it != slotIndex },
+                showCapturedList = false,
+                summaryMessage = "Removed photo from frame ${slotIndex + 1}"
             )
         }
     }
@@ -263,12 +275,13 @@ class FlowViewModel(
         }
     }
 
-    fun updatePhotoAssignmentTransform(slotIndex: Int, scale: Float, offsetX: Float, offsetY: Float) {
+    fun updatePhotoAssignmentTransform(slotIndex: Int, scale: Float, offsetX: Float, offsetY: Float, rotation: Float) {
         _uiState.update { state ->
             val updatedTransform = PhotoTransform(
-                scale = scale.coerceIn(1f, 3.5f),
+                scale = scale.coerceIn(0.5f, 5f),
                 offsetX = offsetX,
-                offsetY = offsetY
+                offsetY = offsetY,
+                rotation = rotation
             )
             val updatedTransforms = state.photoAssignmentTransforms.toMutableList().also {
                 if (slotIndex in it.indices) it[slotIndex] = updatedTransform
@@ -347,13 +360,7 @@ class FlowViewModel(
         _uiState.update { it.copy(stripLayout = layout) }
     }
 
-    fun selectTemplate(template: TemplateOption) {
-        _uiState.update { it.copy(selectedTemplate = template, summaryMessage = "Template selected: ${template.name}") }
-    }
-
-    fun continueTemplate() {
-        setStage(KioskFlowStage.Drawing, "Draw on the strip")
-    }
+    // Template screen removed
 
     fun setBrushTool(tool: BrushTool) {
         _uiState.update { it.copy(activeTool = tool, summaryMessage = "${tool.name} tool active") }
@@ -368,122 +375,21 @@ class FlowViewModel(
     }
 
     fun startStroke(x: Float, y: Float) {
-        val state = uiState.value
-        if (state.stage != KioskFlowStage.Drawing) return
-        val stroke = DrawingStroke(
-            id = "stroke-${System.currentTimeMillis()}",
-            colorArgb = state.activeColorArgb,
-            strokeWidth = state.brushSize,
-            tool = state.activeTool,
-            points = listOf(x to y)
-        )
-        _uiState.update { it.copy(drawingStrokes = it.drawingStrokes + stroke) }
+        // Drawing editor removed — no-op
+        return
     }
 
     fun addStrokePoint(x: Float, y: Float) {
-        _uiState.update { state ->
-            val last = state.drawingStrokes.lastOrNull() ?: return@update state
-            val updated = state.drawingStrokes.dropLast(1) + last.copy(points = last.points + (x to y))
-            state.copy(drawingStrokes = updated)
-        }
+        // Drawing editor removed — no-op
+        return
     }
 
     fun continueDrawing() {
-        setStage(KioskFlowStage.Stickers, "Add kawaii stickers")
-    }
-
-    fun addSticker(sticker: StickerOption) {
-        val state = uiState.value
-        val count = state.placedStickers.size + 1
-        val placed = PlacedSticker(
-            id = "sticker-$count-${System.currentTimeMillis()}",
-            sticker = sticker,
-            x = 0.5f + (count % 3 - 1) * 0.15f,
-            y = 0.5f + (count % 2 - 0.5f) * 0.18f,
-            scale = 1f,
-            rotation = 0f
-        )
-        _uiState.update { it.copy(placedStickers = it.placedStickers + placed, selectedStickerId = placed.id, summaryMessage = "Sticker added: ${sticker.name}") }
-    }
-
-    fun selectSticker(id: String) {
-        _uiState.update { it.copy(selectedStickerId = id) }
-    }
-
-    fun moveSelectedSticker(dx: Float, dy: Float) {
-        updateUiState stateUpdate@{ state ->
-            val selectedId = state.selectedStickerId ?: return@stateUpdate state
-            updateStickers(
-                state = state,
-                stickers = state.placedStickers.map { sticker ->
-                    if (sticker.id == selectedId) {
-                        sticker.copy(
-                            x = (sticker.x + dx).coerceIn(0.05f, 0.95f),
-                            y = (sticker.y + dy).coerceIn(0.05f, 0.95f)
-                        )
-                    } else sticker
-                }
-            )
-        }
-    }
-
-    fun scaleSelectedSticker(factor: Float) {
-        updateUiState stateUpdate@{ state ->
-            val selectedId = state.selectedStickerId ?: return@stateUpdate state
-            updateStickers(
-                state = state,
-                stickers = state.placedStickers.map { sticker ->
-                    if (sticker.id == selectedId) sticker.copy(scale = (sticker.scale * factor).coerceIn(0.5f, 2.5f)) else sticker
-                }
-            )
-        }
-    }
-
-    fun rotateSelectedSticker(delta: Float) {
-        updateUiState stateUpdate@{ state ->
-            val selectedId = state.selectedStickerId ?: return@stateUpdate state
-            updateStickers(
-                state = state,
-                stickers = state.placedStickers.map { sticker ->
-                    if (sticker.id == selectedId) sticker.copy(rotation = sticker.rotation + delta) else sticker
-                }
-            )
-        }
-    }
-
-    fun duplicateSelectedSticker() {
-        updateUiState stateUpdate@{ state ->
-            val selectedId = state.selectedStickerId ?: return@stateUpdate state
-            val selected = state.placedStickers.firstOrNull { it.id == selectedId } ?: return@stateUpdate state
-            val duplicate = selected.copy(
-                id = "${selected.id}-copy-${System.currentTimeMillis()}",
-                x = (selected.x + 0.08f).coerceIn(0.05f, 0.95f),
-                y = (selected.y + 0.08f).coerceIn(0.05f, 0.95f)
-            )
-            updateStickers(
-                state = state,
-                stickers = state.placedStickers + duplicate,
-                selectedStickerId = duplicate.id,
-                summaryMessage = "Sticker duplicated"
-            )
-        }
-    }
-
-    fun deleteSelectedSticker() {
-        updateUiState stateUpdate@{ state ->
-            val selectedId = state.selectedStickerId ?: return@stateUpdate state
-            updateStickers(
-                state = state,
-                stickers = state.placedStickers.filterNot { it.id == selectedId },
-                selectedStickerId = state.placedStickers.firstOrNull { it.id != selectedId }?.id,
-                summaryMessage = "Sticker removed"
-            )
-        }
-    }
-
-    fun continueStickers() {
+        // Drawing/stickers removed — go to preview
         setStage(KioskFlowStage.Preview, "Review the final strip")
     }
+
+    // Sticker functions removed
 
     fun beginPrinting() {
         val currentSessionId = uiState.value.sessionId
@@ -588,7 +494,7 @@ class FlowViewModel(
                 )
             }
 
-            if (nextState.sessionSecondsLeft == 0) {
+            if (nextState.sessionSecondsLeft == 0 && state.sessionSecondsLeft > 0) {
                 viewModelScope.launch {
                     sessionLogService.logEvent(sessionId, "session_timeout_return")
                     _effects.emit(FlowEffect.ReturnToLanding)
@@ -603,7 +509,7 @@ class FlowViewModel(
         _uiState.update { current ->
             current.copy(
                 stage = stage,
-                stageSecondsLeft = stageDuration(stage),
+                stageSecondsLeft = stageDuration(stage, current.flowTimerSettings),
                 summaryMessage = message
             )
         }

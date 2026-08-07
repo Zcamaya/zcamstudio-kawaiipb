@@ -42,6 +42,7 @@ data class FlowUiState(
     // selectedTemplate removed
     val capturedFrames: List<CaptureFrame> = emptyList(),
     val stripLayout: com.zcamstudio.kawaiipb.domain.model.StripLayout? = null,
+    val selectedTemplateOverlayPath: String? = null,
     val photoAssignmentAssignments: List<Int?> = List(8) { null },
     val photoAssignmentTransforms: List<PhotoTransform> = List(8) { PhotoTransform(PhotoAssignmentInitialScale) },
     val photoAssignmentSelectedSlot: Int? = null,

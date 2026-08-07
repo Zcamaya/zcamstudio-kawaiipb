@@ -38,14 +38,15 @@ class KawaiiStorageService(private val context: Context) {
     @Suppress("DEPRECATION")
     private val publicPicturesRoot = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES)
     private val publicRootDir = File(publicPicturesRoot, "KawaiiPB")
-    // public templates directory removed
+    private val publicDownloadsRoot = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+    private val publicTemplatesDir = File(publicDownloadsRoot, "KawaiiPB/Templates")
     private val publicStickersDir = File(publicRootDir, "Stickers")
     private val publicLayoutsDir = File(publicRootDir, "Layouts")
     private val publicExportsDir = File(publicRootDir, "Exports")
 
     fun initializePublicFolders(): File {
         ensureDirectory(publicRootDir)
-        // templates folder removed from initialization
+        ensureDirectory(publicTemplatesDir)
         ensureDirectory(publicStickersDir)
         ensureDirectory(publicLayoutsDir)
         ensureDirectory(publicExportsDir)
@@ -141,6 +142,11 @@ class KawaiiStorageService(private val context: Context) {
         return File(fallbackDir, "$sessionId-print.png")
     }
 
+    fun publicPrintFile(sessionId: String): File {
+        ensureDirectory(publicExportsDir)
+        return File(publicExportsDir, "$sessionId-print.png")
+    }
+
     fun printPdfFile(sessionId: String): File {
         val fallbackDir = ensureDirectory(File(exportsFallbackDir, sessionId))
         return File(fallbackDir, "$sessionId-print.pdf")
@@ -179,6 +185,54 @@ class KawaiiStorageService(private val context: Context) {
 
         val file = printPdfFile(sessionId)
         return FileOutputStream(file)
+    }
+
+    fun publicPrintOutputStream(sessionId: String): OutputStream {
+        val uri = publicPrintUri(sessionId)
+        if (uri != null) {
+            try {
+                val outputStream = context.contentResolver.openOutputStream(uri)
+                    ?: throw IllegalStateException("ContentResolver returned null output stream for URI: $uri")
+                return object : FilterOutputStream(outputStream) {
+                    override fun close() {
+                        super.close()
+                        finalizePendingMediaUri(uri)
+                    }
+                }
+            } catch (exception: Exception) {
+                deleteMediaStoreUri(uri)
+                val fallbackFile = printFile(sessionId)
+                try {
+                    return FileOutputStream(fallbackFile)
+                } catch (fallbackException: Exception) {
+                    throw IllegalStateException(
+                        "Unable to open PNG output stream. MediaStore failure: ${exception.message}; fallback failure: ${fallbackException.message}",
+                        fallbackException
+                    )
+                }
+            }
+        }
+
+        val file = printFile(sessionId)
+        return FileOutputStream(file)
+    }
+
+    private fun publicPrintUri(sessionId: String): Uri? {
+        val pictureValues = ContentValues().apply {
+            put(MediaStore.MediaColumns.DISPLAY_NAME, "$sessionId-print.png")
+            put(MediaStore.MediaColumns.MIME_TYPE, "image/png")
+            put(MediaStore.MediaColumns.RELATIVE_PATH, "${Environment.DIRECTORY_PICTURES}/KawaiiPB/Exports")
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                put(MediaStore.MediaColumns.IS_PENDING, 1)
+            }
+        }
+
+        val downloadsValues = ContentValues(pictureValues).apply {
+            put(MediaStore.MediaColumns.RELATIVE_PATH, "${Environment.DIRECTORY_DOWNLOADS}/KawaiiPB/Exports")
+        }
+
+        return insertMediaStore(MediaStore.Files.getContentUri("external"), pictureValues)
+            ?: insertMediaStore(MediaStore.Downloads.EXTERNAL_CONTENT_URI, downloadsValues)
     }
 
     private fun finalizePendingMediaUri(uri: Uri) {
@@ -240,6 +294,10 @@ class KawaiiStorageService(private val context: Context) {
 
     fun layoutDirectory(name: String): File {
         return ensureDirectory(File(publicLayoutsDir, name))
+    }
+
+    fun publicTemplatesDirectory(): File {
+        return ensureDirectory(publicTemplatesDir)
     }
 
     fun publicExportsDirectory(): File {

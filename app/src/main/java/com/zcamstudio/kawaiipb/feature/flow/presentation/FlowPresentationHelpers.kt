@@ -93,15 +93,43 @@ fun advanceFlowStateForTick(
         when (advancedState.stage) {
             KioskFlowStage.CameraMode -> advancedState.copy(stage = KioskFlowStage.Capture, stageSecondsLeft = stageDuration(KioskFlowStage.Capture, advancedState.flowTimerSettings), captureShotCountdown = 0, isCaptureCountdownActive = false, summaryMessage = "Capture session ready")
             KioskFlowStage.Capture -> advancedState.copy(stage = KioskFlowStage.StripSize, stageSecondsLeft = stageDuration(KioskFlowStage.StripSize, advancedState.flowTimerSettings), captureShotCountdown = 0, isCaptureCountdownActive = false, isCaptureInProgress = false, summaryMessage = "Time expired, choose strip size")
-            KioskFlowStage.PhotoAssignment -> advancedState.copy(stage = KioskFlowStage.Preview, stageSecondsLeft = stageDuration(KioskFlowStage.Preview, advancedState.flowTimerSettings), summaryMessage = "Time expired, review the strip")
+            KioskFlowStage.PhotoAssignment -> {
+                val autoFilled = autoFillRemainingFrames(advancedState)
+                autoFilled.copy(stage = KioskFlowStage.Preview, stageSecondsLeft = stageDuration(KioskFlowStage.Preview, advancedState.flowTimerSettings), summaryMessage = if (autoFilled.photoAssignmentAssignments.any { it == null }) "Time expired, review the strip" else "Time expired, auto-filled empty frames and review the strip")
+            }
             KioskFlowStage.StripSize -> advancedState.copy(stage = KioskFlowStage.PhotoAssignment, stageSecondsLeft = stageDuration(KioskFlowStage.PhotoAssignment, advancedState.flowTimerSettings), summaryMessage = "Time expired, assign photos")
-            KioskFlowStage.Preview -> advancedState.copy(stage = KioskFlowStage.Printing, stageSecondsLeft = 0, summaryMessage = "Saving export", printProgress = 0f)
+            KioskFlowStage.Preview -> advancedState.copy(stage = KioskFlowStage.Preview, stageSecondsLeft = 0, summaryMessage = "Review the final strip")
             KioskFlowStage.Printing -> advancedState.copy(stage = KioskFlowStage.Printing, stageSecondsLeft = 0, printStatus = advancedState.printStatus, summaryMessage = advancedState.summaryMessage)
             KioskFlowStage.Qr -> advancedState
         }
     } else {
         advancedState
     }
+}
+
+private fun autoFillRemainingFrames(state: FlowUiState): FlowUiState {
+    val availablePhotos = state.capturedFrames.indices.toList()
+    if (availablePhotos.isEmpty()) return state
+
+    val alreadyAssigned = state.photoAssignmentAssignments.filterNotNull().toSet()
+    val unassignedPhotos = availablePhotos.filterNot { it in alreadyAssigned }.shuffled()
+    if (unassignedPhotos.isEmpty()) return state
+
+    val assignmentBuilder = state.photoAssignmentAssignments.toMutableList()
+    var photoCursor = 0
+    assignmentBuilder.forEachIndexed { idx, assigned ->
+        if (assigned == null && photoCursor < unassignedPhotos.size) {
+            assignmentBuilder[idx] = unassignedPhotos[photoCursor]
+            photoCursor += 1
+        }
+    }
+
+    return state.copy(
+        photoAssignmentAssignments = assignmentBuilder,
+        photoAssignmentTransforms = List(state.photoAssignmentAssignments.size) { PhotoTransform(PhotoAssignmentInitialScale) },
+        photoAssignmentSelectedSlot = null,
+        photoAssignmentShowCapturedList = false
+    )
 }
 
 fun loadStripLayoutFromAssets(context: Context, assetPath: String): StripLayout? {

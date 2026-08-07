@@ -73,6 +73,7 @@ internal fun FinalPreview(uiState: FlowUiState) {
                     transforms = uiState.photoAssignmentTransforms,
                     capturedFrames = uiState.capturedFrames,
                     selectedSlot = null,
+                    selectedTemplateOverlayPath = uiState.selectedTemplateOverlayPath,
                     onSelectFrame = { },
                     onRemoveFrame = { },
                     onUpdatePhotoTransform = { _, _, _, _, _ -> },

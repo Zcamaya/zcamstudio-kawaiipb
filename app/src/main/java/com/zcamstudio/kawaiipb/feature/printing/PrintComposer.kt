@@ -71,19 +71,26 @@ object PrintComposer {
         textAlign = Paint.Align.CENTER
     }
 
-    fun renderPrintSheet(uiState: FlowUiState, storageService: KawaiiStorageService): Boolean {
+    fun renderPrintSheet(
+        uiState: FlowUiState,
+        storageService: KawaiiStorageService,
+        progressCallback: ((Float, String) -> Unit)? = null
+    ): Boolean {
+        progressCallback?.invoke(0.05f, "Preparing PDF export")
         val assignedFrames = uiState.photoAssignmentAssignments.map { index ->
             index?.let { uiState.capturedFrames.getOrNull(it) }
         }
 
         return if (uiState.stripLayout != null) {
-            renderLayoutExact(uiState.stripLayout, assignedFrames, uiState, storageService)
+            progressCallback?.invoke(0.15f, "Loading layout assets")
+            renderLayoutExact(uiState.stripLayout, assignedFrames, uiState, storageService, progressCallback)
         } else {
-            val bitmap = Bitmap.createBitmap(PrintConstants.PRINT_WIDTH, PrintConstants.PRINT_HEIGHT, Bitmap.Config.ARGB_8888)
+            val bitmap = Bitmap.createBitmap(PrintConstants.PRINT_WIDTH, PrintConstants.PRINT_HEIGHT, Bitmap.Config.RGB_565)
             val canvas = Canvas(bitmap)
 
             drawSheetBackground(canvas)
             drawSheetFrame(canvas)
+            progressCallback?.invoke(0.25f, "Rendering strip preview")
 
             val leftStripBounds = RectF(
                 PrintConstants.STRIP_LEFT.toFloat(),
@@ -118,8 +125,11 @@ object PrintComposer {
 
             renderSheetHeader(canvas)
             renderSheetFooter(canvas)
+            progressCallback?.invoke(0.7f, "Finalizing PDF")
 
-            savePrintFile(storageService, uiState.sessionId, bitmap)
+            val saved = savePrintFile(storageService, uiState.sessionId, bitmap)
+            if (saved) progressCallback?.invoke(1f, "PDF created successfully")
+            saved
         }
     }
 
@@ -155,9 +165,9 @@ object PrintComposer {
         slotRects.forEachIndexed { index, slotRect ->
             drawSlotFrame(canvas, slotRect)
             val frame = frames.getOrNull(index)
-            val photoBitmap = frame?.imagePath?.let { loadBitmapWithOrientation(it) }
+            val transform = uiState.photoAssignmentTransforms.getOrNull(index) ?: PhotoTransform()
+            val photoBitmap = frame?.imagePath?.let { loadPreparedBitmapForSlot(it, slotRect, transform) }
             if (photoBitmap != null) {
-                val transform = uiState.photoAssignmentTransforms.getOrNull(index) ?: PhotoTransform()
                 drawPhotoBitmapFit(canvas, photoBitmap, slotRect, transform)
             } else {
                 canvas.drawRoundRect(slotRect, PrintConstants.SLOT_BORDER_RADIUS, PrintConstants.SLOT_BORDER_RADIUS, placeholderPaint)
@@ -174,16 +184,26 @@ object PrintComposer {
         layout: StripLayout,
         frames: List<CaptureFrame?>,
         uiState: FlowUiState,
-        storageService: KawaiiStorageService
+        storageService: KawaiiStorageService,
+        progressCallback: ((Float, String) -> Unit)? = null
     ): Boolean {
-        val scale = 3.0f
+        val maxScale = 1.5f
+        val pageScale = min(
+            maxScale,
+            min(
+                PrintConstants.PRINT_WIDTH.toFloat() / layout.canvasWidth,
+                PrintConstants.PRINT_HEIGHT.toFloat() / layout.canvasHeight
+            )
+        )
+        val scale = pageScale.coerceAtLeast(1f)
         val outputWidth = (layout.canvasWidth * scale).toInt()
         val outputHeight = (layout.canvasHeight * scale).toInt()
 
-        val bitmap = Bitmap.createBitmap(outputWidth, outputHeight, Bitmap.Config.ARGB_8888)
+        val bitmap = Bitmap.createBitmap(outputWidth, outputHeight, Bitmap.Config.RGB_565)
         val canvas = Canvas(bitmap)
 
         canvas.drawColor(AndroidColor.WHITE)
+        progressCallback?.invoke(0.3f, "Rendering strip layout")
 
         val baseAssetPath = resolveLayoutAssetPath(layout)
         val baseBitmap = baseAssetPath?.let { storageService.openAsset(it) }?.use { stream ->
@@ -192,6 +212,15 @@ object PrintComposer {
         if (baseBitmap != null) {
             val destRect = RectF(0f, 0f, outputWidth.toFloat(), outputHeight.toFloat())
             canvas.drawBitmap(baseBitmap, null, destRect, null)
+        }
+
+        val overlayPath = uiState.selectedTemplateOverlayPath
+        if (!overlayPath.isNullOrBlank()) {
+            val overlayBitmap = BitmapFactory.decodeFile(overlayPath)
+            if (overlayBitmap != null) {
+                val destRect = RectF(0f, 0f, outputWidth.toFloat(), outputHeight.toFloat())
+                canvas.drawBitmap(overlayBitmap, null, destRect, null)
+            }
         }
 
         layout.photoSlots.forEachIndexed { index, slot ->
@@ -205,33 +234,40 @@ object PrintComposer {
             )
 
             val frame = frames.getOrNull(index)
-            val photoBitmap = frame?.imagePath?.let { loadBitmapWithOrientation(it) }
+            val transform = uiState.photoAssignmentTransforms.getOrNull(index) ?: PhotoTransform()
+            val photoBitmap = frame?.imagePath?.let { loadPreparedBitmapForSlot(it, slotRect, transform) }
             if (photoBitmap != null) {
-                val transform = uiState.photoAssignmentTransforms.getOrNull(index) ?: PhotoTransform()
                 drawPhotoBitmapFit(canvas, photoBitmap, slotRect, transform)
             }
         }
 
-        // template overlays removed
-
-        return savePrintFile(storageService, uiState.sessionId, bitmap)
+        progressCallback?.invoke(0.75f, "Saving PDF file")
+        val saved = savePrintFile(storageService, uiState.sessionId, bitmap)
+        if (saved) progressCallback?.invoke(1f, "PDF created successfully")
+        return saved
     }
 
     private fun drawPhotoBitmapFit(canvas: Canvas, photoBitmap: Bitmap, slotRect: RectF, transform: PhotoTransform = PhotoTransform()) {
         val imageWidth = photoBitmap.width.toFloat()
         val imageHeight = photoBitmap.height.toFloat()
-        val baseScale = max(slotRect.width() / imageWidth, slotRect.height() / imageHeight)
-        val fillWidth = imageWidth * baseScale
-        val fillHeight = imageHeight * baseScale
-        val scaledWidth = fillWidth * transform.scale
-        val scaledHeight = fillHeight * transform.scale
+        val baseScale = max(slotRect.width() / imageWidth, slotRect.height() / imageHeight) * 1.25f
+        val scaledWidth = imageWidth * baseScale * transform.scale
+        val scaledHeight = imageHeight * baseScale * transform.scale
         val left = slotRect.left + (slotRect.width() - scaledWidth) / 2f + transform.offsetX
         val top = slotRect.top + (slotRect.height() - scaledHeight) / 2f + transform.offsetY
         val destRect = RectF(left, top, left + scaledWidth, top + scaledHeight)
+
         canvas.save()
         canvas.clipRect(slotRect)
+        canvas.rotate(transform.rotation, destRect.centerX(), destRect.centerY())
         canvas.drawBitmap(photoBitmap, null, destRect, null)
         canvas.restore()
+    }
+
+    private fun loadPreparedBitmapForSlot(path: String, slotRect: RectF, transform: PhotoTransform): Bitmap? {
+        val targetWidth = (slotRect.width() * max(1f, transform.scale)).toInt()
+        val targetHeight = (slotRect.height() * max(1f, transform.scale)).toInt()
+        return loadPreparedPhoto(path, targetWidth, targetHeight)
     }
 
     private fun renderSheetHeader(canvas: Canvas) {

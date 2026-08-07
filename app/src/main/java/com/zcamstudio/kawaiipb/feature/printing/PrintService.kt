@@ -4,7 +4,11 @@ import com.zcamstudio.kawaiipb.feature.flow.presentation.FlowUiState
 import com.zcamstudio.kawaiipb.services.storage.KawaiiStorageService
 
 object PrintService {
-    fun renderPrintSheet(uiState: FlowUiState, storageService: KawaiiStorageService): Boolean {
-        return PrintComposer.renderPrintSheet(uiState, storageService)
+    fun renderPrintSheet(
+        uiState: FlowUiState,
+        storageService: KawaiiStorageService,
+        progressCallback: ((Float, String) -> Unit)? = null
+    ): Boolean {
+        return PrintComposer.renderPrintSheet(uiState, storageService, progressCallback)
     }
 }

@@ -9,6 +9,8 @@ import android.media.ExifInterface
 import android.util.LruCache
 import com.zcamstudio.kawaiipb.domain.model.CaptureFrame
 import com.zcamstudio.kawaiipb.services.storage.KawaiiStorageService
+import java.io.FileOutputStream
+import kotlin.math.max
 import kotlin.math.min
 
 private const val PreparedPhotoCacheSizeKb = 16 * 1024
@@ -45,13 +47,19 @@ internal fun loadPreparedPhoto(path: String, width: Int, height: Int): Bitmap? {
     val cacheKey = "$path|$width|$height"
     preparedPhotoCache.get(cacheKey)?.let { return it }
 
-    val original = loadBitmapWithOrientation(path) ?: return null
     val targetWidth = width.coerceAtLeast(1)
     val targetHeight = height.coerceAtLeast(1)
-    val scale = min(targetWidth.toFloat() / original.width.toFloat(), targetHeight.toFloat() / original.height.toFloat())
-    val scaledWidth = (original.width * scale).toInt().coerceAtLeast(1)
-    val scaledHeight = (original.height * scale).toInt().coerceAtLeast(1)
-    return Bitmap.createScaledBitmap(original, scaledWidth, scaledHeight, true).also {
+    val original = decodeBitmapWithOrientation(path, targetWidth, targetHeight) ?: return null
+    val scale = max(targetWidth.toFloat() / original.width.toFloat(), targetHeight.toFloat() / original.height.toFloat())
+    val scaledWidth = max((original.width * scale).toInt(), 1)
+    val scaledHeight = max((original.height * scale).toInt(), 1)
+    val finalBitmap = if (scaledWidth == original.width && scaledHeight == original.height) {
+        original
+    } else {
+        Bitmap.createScaledBitmap(original, scaledWidth, scaledHeight, true)
+    }
+
+    return finalBitmap.also {
         preparedPhotoCache.put(cacheKey, it)
     }
 }
@@ -73,6 +81,52 @@ internal fun loadBitmapWithOrientation(path: String): Bitmap? {
     }
 }
 
+internal fun decodeBitmapWithOrientation(path: String, targetWidth: Int, targetHeight: Int): Bitmap? {
+    val options = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+    BitmapFactory.decodeFile(path, options)
+    val originalWidth = options.outWidth
+    val originalHeight = options.outHeight
+    if (originalWidth <= 0 || originalHeight <= 0) return null
+
+    val rotation = runCatching {
+        val exif = ExifInterface(path)
+        when (exif.getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL)) {
+            ExifInterface.ORIENTATION_ROTATE_90 -> 90
+            ExifInterface.ORIENTATION_ROTATE_180 -> 180
+            ExifInterface.ORIENTATION_ROTATE_270 -> 270
+            else -> 0
+        }
+    }.getOrDefault(0)
+
+    val (decodeWidth, decodeHeight) = if (rotation == 90 || rotation == 270) {
+        targetHeight to targetWidth
+    } else {
+        targetWidth to targetHeight
+    }
+
+    options.inSampleSize = calculateInSampleSize(originalWidth, originalHeight, decodeWidth, decodeHeight)
+    options.inJustDecodeBounds = false
+    val decoded = BitmapFactory.decodeFile(path, options) ?: return null
+
+    return if (rotation == 0) {
+        decoded
+    } else {
+        Bitmap.createBitmap(decoded, 0, 0, decoded.width, decoded.height, Matrix().apply { postRotate(rotation.toFloat()) }, true)
+    }
+}
+
+private fun calculateInSampleSize(originalWidth: Int, originalHeight: Int, reqWidth: Int, reqHeight: Int): Int {
+    var inSampleSize = 1
+    if (originalHeight > reqHeight || originalWidth > reqWidth) {
+        val halfHeight = originalHeight / 2
+        val halfWidth = originalWidth / 2
+        while (halfHeight / inSampleSize >= reqHeight && halfWidth / inSampleSize >= reqWidth) {
+            inSampleSize *= 2
+        }
+    }
+    return inSampleSize
+}
+
 internal fun savePrintFile(storageService: KawaiiStorageService, sessionId: String, bitmap: Bitmap): Boolean {
     val document = PdfDocument()
     return try {
@@ -84,9 +138,14 @@ internal fun savePrintFile(storageService: KawaiiStorageService, sessionId: Stri
         storageService.publicPdfOutputStream(sessionId).use { stream ->
             document.writeTo(stream)
         }
+
+        storageService.publicPrintOutputStream(sessionId).use { stream ->
+            bitmap.compress(Bitmap.CompressFormat.PNG, 100, stream)
+        }
+
         true
     } catch (exception: Exception) {
-        throw IllegalStateException("Unable to save PDF export: ${exception.message}", exception)
+        throw IllegalStateException("Unable to save PDF and image export: ${exception.message}", exception)
     } finally {
         document.close()
     }

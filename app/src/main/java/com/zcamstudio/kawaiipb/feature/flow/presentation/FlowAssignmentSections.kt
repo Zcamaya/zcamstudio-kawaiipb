@@ -72,8 +72,8 @@ import com.zcamstudio.kawaiipb.core.designsystem.SoftLavender
 import com.zcamstudio.kawaiipb.core.designsystem.SoftText
 import com.zcamstudio.kawaiipb.core.designsystem.WarmCream
 import com.zcamstudio.kawaiipb.domain.model.CaptureFrame
-// TemplateOption removed
 import com.zcamstudio.kawaiipb.domain.model.StripLayout
+import com.zcamstudio.kawaiipb.domain.model.StripSize
 import kotlin.math.min
 
 @Composable
@@ -121,7 +121,8 @@ internal fun FlowPhotoAssignmentStage(
                         assignments = uiState.photoAssignmentAssignments,
                         transforms = uiState.photoAssignmentTransforms,
                         capturedFrames = uiState.capturedFrames,
-                        selectedTemplateOverlayPath = uiState.selectedTemplateOverlayPath,
+                        selectedTemplateFolderPath = uiState.selectedTemplateFolderPath,
+                        stripSize = uiState.stripSize,
                         onSelectFrame = onSelectAssignedFrame,
                         onRemoveFrame = onRemoveFrame,
                         onUpdatePhotoTransform = onUpdatePhotoAssignmentTransform,
@@ -204,10 +205,10 @@ internal fun FlowPhotoAssignmentStage(
                             1 -> {
                                 Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                                     val context = LocalContext.current
-                                    val overlays = remember(uiState.stripSize, context) {
+                                    val templates = remember(uiState.stripSize, context) {
                                         listTemplateOverlayOptions(context, uiState.stripSize)
                                     }
-                                    if (overlays.isEmpty()) {
+                                    if (templates.isEmpty()) {
                                         Surface(
                                             shape = RoundedCornerShape(16.dp),
                                             color = Color.White,
@@ -215,20 +216,25 @@ internal fun FlowPhotoAssignmentStage(
                                             modifier = Modifier.fillMaxWidth()
                                         ) {
                                             Box(modifier = Modifier.padding(12.dp)) {
-                                                Text(text = "No imported overlays found in Downloads/KawaiiPB/Templates", color = SoftText, style = MaterialTheme.typography.bodyMedium)
+                                                Text(text = "No imported templates found in Downloads/KawaiiPB/Templates", color = SoftText, style = MaterialTheme.typography.bodyMedium)
                                             }
                                         }
                                     } else {
-                                        overlays.forEach { overlay ->
-                                            val selected = overlay.path == uiState.selectedTemplateOverlayPath
+                                        templates.forEach { template ->
+                                            val selected = template.templateFolderPath == uiState.selectedTemplateFolderPath
                                             Surface(
                                                 shape = RoundedCornerShape(16.dp),
                                                 color = if (selected) CherryPink.copy(alpha = 0.12f) else Color.White,
                                                 border = BorderStroke(1.dp, if (selected) CherryPink else Color(0xFFE8DDE8)),
-                                                modifier = Modifier.fillMaxWidth().clickable { onSelectTemplateOverlay(overlay.path) }
+                                                modifier = Modifier.fillMaxWidth().clickable { onSelectTemplateOverlay(template.templateFolderPath) }
                                             ) {
-                                                Box(modifier = Modifier.padding(12.dp)) {
-                                                    Text(text = overlay.displayName, color = InkRose, style = MaterialTheme.typography.bodyMedium)
+                                                Column(modifier = Modifier.padding(12.dp)) {
+                                                    Text(text = template.displayName, color = InkRose, style = MaterialTheme.typography.bodyMedium)
+                                                    Text(
+                                                        text = template.backgroundPath?.let { "Has background and ${uiState.stripSize.name} overlay" } ?: "No background, ${uiState.stripSize.name} overlay",
+                                                        color = SoftText,
+                                                        style = MaterialTheme.typography.bodySmall
+                                                    )
                                                 }
                                             }
                                         }
@@ -279,7 +285,8 @@ internal fun FlowGraphicToolWorkspace(
     assignments: List<Int?>,
     transforms: List<PhotoTransform>,
     capturedFrames: List<CaptureFrame>,
-    selectedTemplateOverlayPath: String?,
+    selectedTemplateFolderPath: String?,
+    stripSize: StripSize,
     onSelectFrame: (Int) -> Unit,
     onRemoveFrame: (Int) -> Unit,
     onUpdatePhotoTransform: (Int, Float, Float, Float, Float) -> Unit,
@@ -300,7 +307,8 @@ internal fun FlowGraphicToolWorkspace(
             transforms = transforms,
             capturedFrames = capturedFrames,
             selectedSlot = selectedSlot,
-            selectedTemplateOverlayPath = selectedTemplateOverlayPath,
+            selectedTemplateFolderPath = selectedTemplateFolderPath,
+            stripSize = stripSize,
             onSelectFrame = onSelectFrame,
             onRemoveFrame = onRemoveFrame,
             onUpdatePhotoTransform = onUpdatePhotoTransform,
@@ -340,7 +348,8 @@ internal fun FlowAssignmentLayoutPreview(
     transforms: List<PhotoTransform>,
     capturedFrames: List<CaptureFrame>,
     selectedSlot: Int?,
-    selectedTemplateOverlayPath: String?,
+    selectedTemplateFolderPath: String?,
+    stripSize: StripSize,
     onSelectFrame: (Int) -> Unit,
     onRemoveFrame: (Int) -> Unit,
     onUpdatePhotoTransform: (Int, Float, Float, Float, Float) -> Unit,
@@ -356,8 +365,11 @@ internal fun FlowAssignmentLayoutPreview(
 
     val context = LocalContext.current
     val baseAssetPath = resolveLayoutAssetPath(layout)
-    val backgroundImage = remember(baseAssetPath) { baseAssetPath?.let { loadAssetImage(context, it) } }
-    val overlayBitmap = remember(selectedTemplateOverlayPath) { selectedTemplateOverlayPath?.let { loadTemplateOverlayBitmap(context, it) } }
+    val baseBackgroundImage = remember(baseAssetPath) { baseAssetPath?.let { loadAssetImage(context, it) } }
+    val templateBackgroundPath = remember(selectedTemplateFolderPath) { resolveTemplateBackgroundPath(context, selectedTemplateFolderPath) }
+    val templateOverlayPath = remember(selectedTemplateFolderPath, stripSize) { resolveTemplateOverlayPath(context, selectedTemplateFolderPath, stripSize) }
+    val templateBackgroundImage = remember(templateBackgroundPath) { templateBackgroundPath?.let { loadTemplateImage(context, it) } }
+    val overlayBitmap = remember(templateOverlayPath) { templateOverlayPath?.let { loadTemplateImage(context, it) } }
 
     BoxWithConstraints(modifier = modifier) {
         val previewAspect = layout.canvasWidth.toFloat() / layout.canvasHeight.toFloat()
@@ -372,21 +384,13 @@ internal fun FlowAssignmentLayoutPreview(
                 .size(width = targetWidth, height = targetHeight)
                 .align(Alignment.Center)
         ) {
-            if (backgroundImage != null) {
-                Image(bitmap = backgroundImage, contentDescription = null, contentScale = ContentScale.FillBounds, modifier = Modifier.fillMaxSize())
+            val displayBackground = templateBackgroundImage ?: baseBackgroundImage
+            if (displayBackground != null) {
+                Image(bitmap = displayBackground, contentDescription = null, contentScale = ContentScale.FillBounds, modifier = Modifier.fillMaxSize())
             } else {
                 Box(modifier = Modifier.fillMaxSize().background(Color.Transparent), contentAlignment = Alignment.Center) {
                     Text(text = "Base layout loading...", color = SoftText)
                 }
-            }
-
-            if (overlayBitmap != null) {
-                Image(
-                    bitmap = overlayBitmap,
-                    contentDescription = null,
-                    contentScale = ContentScale.FillBounds,
-                    modifier = Modifier.fillMaxSize()
-                )
             }
 
             layout.photoSlots.forEachIndexed { slotIndex, slot ->
@@ -503,7 +507,14 @@ internal fun FlowAssignmentLayoutPreview(
                 }
             }
 
-            // overlay removed
+            if (overlayBitmap != null) {
+                Image(
+                    bitmap = overlayBitmap,
+                    contentDescription = null,
+                    contentScale = ContentScale.FillBounds,
+                    modifier = Modifier.fillMaxSize()
+                )
+            }
         }
     }
 }

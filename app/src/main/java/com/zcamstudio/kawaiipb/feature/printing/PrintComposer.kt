@@ -11,7 +11,10 @@ import com.zcamstudio.kawaiipb.domain.model.StripLayout
 import com.zcamstudio.kawaiipb.domain.model.StripSize
 import com.zcamstudio.kawaiipb.feature.flow.presentation.FlowUiState
 import com.zcamstudio.kawaiipb.feature.flow.presentation.PhotoTransform
+import com.zcamstudio.kawaiipb.feature.flow.presentation.parseStripSize
 import com.zcamstudio.kawaiipb.feature.flow.presentation.resolveLayoutAssetPath
+import com.zcamstudio.kawaiipb.feature.flow.presentation.resolveTemplateBackgroundPath
+import com.zcamstudio.kawaiipb.feature.flow.presentation.resolveTemplateOverlayPath
 import com.zcamstudio.kawaiipb.services.storage.KawaiiStorageService
 import kotlin.math.max
 import kotlin.math.min
@@ -205,24 +208,27 @@ object PrintComposer {
         canvas.drawColor(AndroidColor.WHITE)
         progressCallback?.invoke(0.3f, "Rendering strip layout")
 
-        val baseAssetPath = resolveLayoutAssetPath(layout)
-        val baseBitmap = baseAssetPath?.let { storageService.openAsset(it) }?.use { stream ->
-            BitmapFactory.decodeStream(stream)
-        }
-        if (baseBitmap != null) {
-            val destRect = RectF(0f, 0f, outputWidth.toFloat(), outputHeight.toFloat())
-            canvas.drawBitmap(baseBitmap, null, destRect, null)
-        }
-
-        val overlayPath = uiState.selectedTemplateOverlayPath
-        if (!overlayPath.isNullOrBlank()) {
-            val overlayBitmap = BitmapFactory.decodeFile(overlayPath)
-            if (overlayBitmap != null) {
-                val destRect = RectF(0f, 0f, outputWidth.toFloat(), outputHeight.toFloat())
-                canvas.drawBitmap(overlayBitmap, null, destRect, null)
+        val templateBackgroundPath = resolveTemplateBackgroundPath(storageService.appContext(), uiState.selectedTemplateFolderPath)
+        val backgroundBitmap = if (!templateBackgroundPath.isNullOrBlank()) {
+            if (templateBackgroundPath.startsWith("asset://")) {
+                val assetPath = templateBackgroundPath.removePrefix("asset://")
+                storageService.openAsset(assetPath)?.use { BitmapFactory.decodeStream(it) }
+            } else {
+                BitmapFactory.decodeFile(templateBackgroundPath)
+            }
+        } else {
+            val baseAssetPath = resolveLayoutAssetPath(layout)
+            baseAssetPath?.let { storageService.openAsset(it) }?.use { stream ->
+                BitmapFactory.decodeStream(stream)
             }
         }
 
+        if (backgroundBitmap != null) {
+            val destRect = RectF(0f, 0f, outputWidth.toFloat(), outputHeight.toFloat())
+            canvas.drawBitmap(backgroundBitmap, null, destRect, null)
+        }
+
+        val overlayPath = resolveTemplateOverlayPath(storageService.appContext(), uiState.selectedTemplateFolderPath, layout.stripType?.let { parseStripSize(it) } ?: StripSize.TwoByFour)
         layout.photoSlots.forEachIndexed { index, slot ->
             if (!slot.visible) return@forEachIndexed
 
@@ -238,6 +244,19 @@ object PrintComposer {
             val photoBitmap = frame?.imagePath?.let { loadPreparedBitmapForSlot(it, slotRect, transform) }
             if (photoBitmap != null) {
                 drawPhotoBitmapFit(canvas, photoBitmap, slotRect, transform)
+            }
+        }
+
+        if (!overlayPath.isNullOrBlank()) {
+            val overlayBitmap = if (overlayPath.startsWith("asset://")) {
+                val assetPath = overlayPath.removePrefix("asset://")
+                storageService.openAsset(assetPath)?.use { BitmapFactory.decodeStream(it) }
+            } else {
+                BitmapFactory.decodeFile(overlayPath)
+            }
+            if (overlayBitmap != null) {
+                val destRect = RectF(0f, 0f, outputWidth.toFloat(), outputHeight.toFloat())
+                canvas.drawBitmap(overlayBitmap, null, destRect, null)
             }
         }
 

@@ -201,8 +201,8 @@ class FlowViewModel(
         _uiState.update { it.copy(stripLayout = layout) }
     }
 
-    fun setSelectedTemplateOverlayPath(path: String?) {
-        _uiState.update { it.copy(selectedTemplateOverlayPath = path) }
+    fun setSelectedTemplatePath(path: String?) {
+        _uiState.update { it.copy(selectedTemplateFolderPath = path) }
     }
 
     // Template screen removed

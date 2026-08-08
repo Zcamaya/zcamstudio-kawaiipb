@@ -286,6 +286,8 @@ class KawaiiStorageService(private val context: Context) {
         }
     }
 
+    fun appContext(): Context = context
+
     // templateDirectory removed
 
     fun stickerDirectory(category: String): File {

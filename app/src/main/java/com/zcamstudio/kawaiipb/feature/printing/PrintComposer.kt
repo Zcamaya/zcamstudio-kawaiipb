@@ -58,22 +58,6 @@ object PrintComposer {
         isAntiAlias = true
     }
 
-    private val textPaint = Paint().apply {
-        style = Paint.Style.FILL
-        color = AndroidColor.parseColor("#7B2F45")
-        textSize = 46f
-        isAntiAlias = true
-        textAlign = Paint.Align.CENTER
-    }
-
-    private val captionPaint = Paint().apply {
-        style = Paint.Style.FILL
-        color = AndroidColor.parseColor("#B76F7F")
-        textSize = 36f
-        isAntiAlias = true
-        textAlign = Paint.Align.CENTER
-    }
-
     fun renderPrintSheet(
         uiState: FlowUiState,
         storageService: KawaiiStorageService,

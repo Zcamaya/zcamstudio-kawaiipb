@@ -39,6 +39,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
@@ -65,7 +66,14 @@ import com.zcamstudio.kawaiipb.domain.model.ChartPoint
 import com.zcamstudio.kawaiipb.domain.model.RankedItem
 import com.zcamstudio.kawaiipb.domain.model.StatusBadge
 
-private val AdminSections = listOf("Dashboard", "Camera", "Printer", "Storage", "Settings", "Logs")
+private val AdminSections = listOf(
+    "Dashboard",
+    "Camera",
+    "Printer",
+    "Storage",
+    "Settings",
+    "Logs"
+)
 
 @Composable
 fun AdminScreen(
@@ -91,7 +99,7 @@ fun AdminScreen(
 
     if (uiState.isLoading || uiState.summary == null) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Text(text = "Loading admin dashboard...", style = MaterialTheme.typography.titleLarge)
+            Text(text = stringResource(id = com.zcamstudio.kawaiipb.R.string.admin_loading), style = MaterialTheme.typography.titleLarge)
         }
         return
     }
@@ -192,7 +200,7 @@ private fun LandscapeSidebar(
         modifier = Modifier.width(200.dp).padding(12.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        KawaiiSectionTitle(title = "Admin Panel", subtitle = "Local kiosk control")
+        KawaiiSectionTitle(title = stringResource(id = com.zcamstudio.kawaiipb.R.string.admin_panel_title), subtitle = stringResource(id = com.zcamstudio.kawaiipb.R.string.admin_panel_subtitle))
         Spacer(modifier = Modifier.height(6.dp))
         sections.forEach { section ->
             val isSelected = section == selectedSection
@@ -231,8 +239,8 @@ private fun AdminSectionTabs(
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         KawaiiSectionTitle(
-            title = "Admin Panel",
-            subtitle = "Responsive layout for portrait and landscape kiosks"
+            title = stringResource(id = com.zcamstudio.kawaiipb.R.string.admin_panel_title),
+            subtitle = stringResource(id = com.zcamstudio.kawaiipb.R.string.admin_panel_landscape_subtitle)
         )
         Row(
             modifier = Modifier.horizontalScroll(rememberScrollState()),
@@ -278,8 +286,8 @@ private fun TimerSettingsCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                KawaiiSectionTitle(title = "Session Timers", subtitle = "Adjust the default flow timings")
-                KawaiiSecondaryButton(text = "Reset Defaults") {
+                KawaiiSectionTitle(title = stringResource(id = com.zcamstudio.kawaiipb.R.string.admin_timer_title), subtitle = stringResource(id = com.zcamstudio.kawaiipb.R.string.admin_timer_subtitle))
+                KawaiiSecondaryButton(text = stringResource(id = com.zcamstudio.kawaiipb.R.string.admin_reset_defaults)) {
                     showResetConfirm = true
                 }
             }
@@ -348,7 +356,7 @@ private fun TimerSettingsCard(
             }
 
             KawaiiPrimaryButton(
-                text = "Save",
+                text = stringResource(id = com.zcamstudio.kawaiipb.R.string.admin_save),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 onSaveTimerSettings()
@@ -359,19 +367,19 @@ private fun TimerSettingsCard(
     if (showResetConfirm) {
         AlertDialog(
             onDismissRequest = { showResetConfirm = false },
-            title = { Text("Reset timer defaults?") },
-            text = { Text("This will restore the built-in timer values for this session flow.") },
+            title = { Text(stringResource(id = com.zcamstudio.kawaiipb.R.string.admin_reset_title)) },
+            text = { Text(stringResource(id = com.zcamstudio.kawaiipb.R.string.admin_reset_message)) },
             confirmButton = {
                 TextButton(onClick = {
                     onResetTimerSettings()
                     showResetConfirm = false
                 }) {
-                    Text("Reset")
+                    Text(stringResource(id = com.zcamstudio.kawaiipb.R.string.admin_reset_confirm))
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showResetConfirm = false }) {
-                    Text("Cancel")
+                    Text(stringResource(id = com.zcamstudio.kawaiipb.R.string.admin_cancel))
                 }
             }
         )
@@ -386,9 +394,9 @@ private fun CameraSettingsCard(
 ) {
     KawaiiCard(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(20.dp)) {
-            KawaiiSectionTitle(title = "Camera Assignment", subtitle = "Pick the camera source for each booth mode")
+            KawaiiSectionTitle(title = stringResource(id = com.zcamstudio.kawaiipb.R.string.admin_camera_assignment_title), subtitle = stringResource(id = com.zcamstudio.kawaiipb.R.string.admin_camera_assignment_subtitle))
             Text(
-                text = "Select the camera used for Classic Photo Booth and Elevator View. External devices will be used when available.",
+                text = stringResource(id = com.zcamstudio.kawaiipb.R.string.admin_camera_assignment_message),
                 style = MaterialTheme.typography.bodySmall,
                 color = SoftText
             )
@@ -400,13 +408,13 @@ private fun CameraSettingsCard(
             ) {
                 Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
                     CameraModeDropdown(
-                        title = "Classic Photo Booth",
+                        title = stringResource(id = com.zcamstudio.kawaiipb.R.string.admin_camera_classic),
                         selectedId = uiState.classicCameraSelectionId,
                         options = cameraOptions,
                         onSelectionChanged = { cameraId -> onCameraSelectionChanged("classic", cameraId) }
                     )
                     CameraModeDropdown(
-                        title = "Elevator View",
+                        title = stringResource(id = com.zcamstudio.kawaiipb.R.string.admin_camera_elevator),
                         selectedId = uiState.elevatorCameraSelectionId,
                         options = cameraOptions,
                         onSelectionChanged = { cameraId -> onCameraSelectionChanged("elevator", cameraId) }
@@ -452,7 +460,7 @@ private fun CameraModeDropdown(
                 Column {
                     Text(text = selectedOption.label, style = MaterialTheme.typography.bodyLarge, color = InkRose)
                     if (selectedOption.isExternal) {
-                        Text(text = "External device", style = MaterialTheme.typography.bodySmall, color = SoftText)
+                        Text(text = stringResource(id = com.zcamstudio.kawaiipb.R.string.admin_camera_external_device), style = MaterialTheme.typography.bodySmall, color = SoftText)
                     }
                 }
                 Text(text = "▼", style = MaterialTheme.typography.titleLarge, color = InkRose)
@@ -470,7 +478,7 @@ private fun CameraModeDropdown(
                         Column {
                             Text(option.label, color = InkRose)
                             if (option.isExternal) {
-                                Text("Use an attached external camera", style = MaterialTheme.typography.bodySmall, color = SoftText)
+                                Text(stringResource(id = com.zcamstudio.kawaiipb.R.string.admin_camera_external_hint), style = MaterialTheme.typography.bodySmall, color = SoftText)
                             }
                         }
                     },
@@ -517,10 +525,10 @@ private fun PortraitDashboardContent(summary: AdminDashboardSummary) {
     StatusCard(statuses = summary.statuses, modifier = Modifier.fillMaxWidth())
     // Templates manager removed
     MiniModuleCard(
-        title = "Camera & Printer",
-        subtitle = "Local hardware controls, presets, and test actions.",
-        primary = "Detect Devices",
-        secondary = "Open Settings",
+        title = stringResource(id = com.zcamstudio.kawaiipb.R.string.admin_module_camera_printer_title),
+        subtitle = stringResource(id = com.zcamstudio.kawaiipb.R.string.admin_module_camera_printer_subtitle),
+        primary = stringResource(id = com.zcamstudio.kawaiipb.R.string.admin_module_detect_devices),
+        secondary = stringResource(id = com.zcamstudio.kawaiipb.R.string.admin_module_open_settings),
         modifier = Modifier.fillMaxWidth()
     )
 }
@@ -533,10 +541,10 @@ private fun DashboardHeader() {
         verticalAlignment = Alignment.CenterVertically
     ) {
         Column {
-            Text(text = "Dashboard", style = MaterialTheme.typography.headlineLarge, color = InkRose)
-            Text(text = "Today", style = MaterialTheme.typography.bodyMedium, color = SoftText)
+            Text(text = stringResource(id = com.zcamstudio.kawaiipb.R.string.admin_dashboard_title), style = MaterialTheme.typography.headlineLarge, color = InkRose)
+            Text(text = stringResource(id = com.zcamstudio.kawaiipb.R.string.admin_dashboard_subtitle), style = MaterialTheme.typography.bodyMedium, color = SoftText)
         }
-        KawaiiPill(text = "Local-only mode", accent = SoftLavender)
+        KawaiiPill(text = stringResource(id = com.zcamstudio.kawaiipb.R.string.admin_dashboard_mode), accent = SoftLavender)
     }
 }
 
@@ -582,7 +590,7 @@ private fun MetricCard(metric: com.zcamstudio.kawaiipb.domain.model.DashboardMet
 private fun TrendCard(points: List<ChartPoint>, modifier: Modifier = Modifier) {
     KawaiiCard(modifier = modifier) {
         Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-            KawaiiSectionTitle(title = "Sessions Overview", subtitle = "Sample daily trend from local analytics")
+            KawaiiSectionTitle(title = stringResource(id = com.zcamstudio.kawaiipb.R.string.admin_sessions_overview_title), subtitle = stringResource(id = com.zcamstudio.kawaiipb.R.string.admin_sessions_overview_subtitle))
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -626,7 +634,7 @@ private fun RankingCard(
 ) {
     KawaiiCard(modifier = modifier) {
         Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-            KawaiiSectionTitle(title = title, subtitle = "Ranked from local usage data")
+            KawaiiSectionTitle(title = title, subtitle = stringResource(id = com.zcamstudio.kawaiipb.R.string.admin_ranking_subtitle))
             items.forEach { item ->
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
@@ -657,7 +665,7 @@ private fun RankingCard(
 private fun StatusCard(statuses: List<StatusBadge>, modifier: Modifier = Modifier) {
     KawaiiCard(modifier = modifier) {
         Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-            KawaiiSectionTitle(title = "System Status", subtitle = "Hardware and storage health")
+            KawaiiSectionTitle(title = stringResource(id = com.zcamstudio.kawaiipb.R.string.admin_status_title), subtitle = stringResource(id = com.zcamstudio.kawaiipb.R.string.admin_status_subtitle))
             statuses.forEach { status ->
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -673,7 +681,7 @@ private fun StatusCard(statuses: List<StatusBadge>, modifier: Modifier = Modifie
                         color = if (status.isHealthy) MintFoam else MaterialTheme.colorScheme.errorContainer
                     ) {
                         Text(
-                            text = if (status.isHealthy) "OK" else "Alert",
+                            text = if (status.isHealthy) stringResource(id = com.zcamstudio.kawaiipb.R.string.admin_status_ok) else stringResource(id = com.zcamstudio.kawaiipb.R.string.admin_status_alert),
                             modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
                             style = MaterialTheme.typography.labelLarge,
                             color = InkRose

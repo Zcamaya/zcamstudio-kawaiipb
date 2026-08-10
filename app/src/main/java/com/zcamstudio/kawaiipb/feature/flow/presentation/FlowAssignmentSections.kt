@@ -193,7 +193,9 @@ internal fun FlowPhotoAssignmentStage(
                                     }
 
                                     Row(
-                                        modifier = Modifier.fillMaxWidth(),
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(bottom = 8.dp),
                                         horizontalArrangement = Arrangement.spacedBy(6.dp)
                                     ) {
                                         KawaiiSecondaryButton(text = "Shuffle", modifier = Modifier.weight(1f)) { onShuffleAssignment() }

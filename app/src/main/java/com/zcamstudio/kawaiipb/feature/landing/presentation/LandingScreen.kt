@@ -23,6 +23,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.zcamstudio.kawaiipb.core.designsystem.CherryPink
 import com.zcamstudio.kawaiipb.core.designsystem.CloudWhite
@@ -100,13 +101,13 @@ fun LandingScreen(
                 }
 
                 Text(
-                    text = "KAWAII PB",
+                    text = stringResource(id = com.zcamstudio.kawaiipb.R.string.landing_title),
                     style = titleStyle,
                     color = CherryPink
                 )
 
                 KawaiiPrimaryButton(
-                    text = "Start Session",
+                    text = stringResource(id = com.zcamstudio.kawaiipb.R.string.landing_start_session),
                     modifier = Modifier.fillMaxWidth(buttonWidthFraction)
                 ) {
                     onStartClicked()
@@ -143,15 +144,15 @@ private fun AdminUnlockDialog(
                 modifier = Modifier.padding(24.dp),
                 verticalArrangement = Arrangement.spacedBy(KawaiiSpacing.md)
             ) {
-                Text(text = "Admin Access", style = MaterialTheme.typography.headlineSmall, color = CherryPink)
+                Text(text = stringResource(id = com.zcamstudio.kawaiipb.R.string.landing_admin_title), style = MaterialTheme.typography.headlineSmall, color = CherryPink)
                 Text(
-                    text = "This emulator does not have a real device lock, so unlock is simulated locally.",
+                    text = stringResource(id = com.zcamstudio.kawaiipb.R.string.landing_admin_message),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 androidx.compose.foundation.layout.Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    KawaiiPrimaryButton(text = "Cancel", modifier = Modifier.weight(1f)) { onDismiss() }
-                    KawaiiPrimaryButton(text = "Unlock", modifier = Modifier.weight(1f)) { onConfirm() }
+                    KawaiiPrimaryButton(text = stringResource(id = com.zcamstudio.kawaiipb.R.string.landing_admin_cancel), modifier = Modifier.weight(1f)) { onDismiss() }
+                    KawaiiPrimaryButton(text = stringResource(id = com.zcamstudio.kawaiipb.R.string.landing_admin_unlock), modifier = Modifier.weight(1f)) { onConfirm() }
                 }
             }
         }

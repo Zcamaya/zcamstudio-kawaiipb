@@ -23,7 +23,12 @@ enum class CameraLens {
 enum class StripSize(val label: String, val frameCount: Int) {
     TwoByFour("2 x 4", 8),
     TwoByThree("2 x 3", 6),
-    TwoByTwo("2 x 2", 4)
+    TwoByTwo("2 x 2", 4),
+    TwoByOneStack("2 x 1 Stack", 2),
+    ThreeByOneLeft("3 x 1 Left", 3),
+    ThreeByOneRight("3 x 1 Right", 3),
+    TwoByTwoGrid("2 x 2 Grid", 4),
+    FourByBanner("4 x 1 Banner", 4)
 }
 
 enum class BrushTool {

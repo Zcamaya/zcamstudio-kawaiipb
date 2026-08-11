@@ -1,11 +1,14 @@
 package com.zcamstudio.kawaiipb.feature.flow.presentation
 
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -16,20 +19,31 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import kotlin.math.abs
+import kotlin.math.roundToInt
 import com.zcamstudio.kawaiipb.core.designsystem.*
 // BrushTool removed
 import com.zcamstudio.kawaiipb.domain.model.KioskFlowStage
@@ -42,37 +56,119 @@ internal fun FlowStripSizeStage(
     onSelectStripSize: (StripSize) -> Unit,
     onContinue: () -> Unit
 ) {
-    val options = remember { listOf(StripSize.TwoByFour, StripSize.TwoByThree, StripSize.TwoByTwo) }
+    val options = remember { StripSize.values().toList() }
+    val carouselOptions = remember(options) { options + options + options }
+    val selectedIndex = options.indexOf(uiState.stripSize).coerceAtLeast(0)
+    val listState = rememberLazyListState(
+        initialFirstVisibleItemIndex = options.size + selectedIndex
+    )
 
-    Column(verticalArrangement = Arrangement.spacedBy(16.dp), modifier = Modifier.fillMaxWidth()) {
-        Text(text = "Choose your strip layout", style = androidx.compose.material3.MaterialTheme.typography.titleMedium, color = InkRose)
+    BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+        val selectedWidth = 220.dp
+        val unselectedWidth = 180.dp
+        val horizontalPadding = ((maxWidth - selectedWidth) / 2).coerceAtLeast(0.dp)
 
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            options.forEach { size ->
-                val isSelected = size == uiState.stripSize
-                Surface(
-                    shape = androidx.compose.material3.MaterialTheme.shapes.large,
-                    color = if (isSelected) SoftLavender.copy(alpha = 0.4f) else WarmCream,
-                    modifier = Modifier
-                        .weight(1f)
-                        .clickable { onSelectStripSize(size) }
-                ) {
-                    Column(
-                        modifier = Modifier.padding(12.dp),
-                        verticalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        Text(text = size.label, style = androidx.compose.material3.MaterialTheme.typography.titleMedium, color = InkRose)
-                        StripPreviewCard(size = size)
+        Column(verticalArrangement = Arrangement.spacedBy(16.dp), modifier = Modifier.fillMaxWidth()) {
+            Text(text = "Choose your strip layout", style = androidx.compose.material3.MaterialTheme.typography.titleMedium, color = InkRose)
+
+            LazyRow(
+                state = listState,
+                contentPadding = PaddingValues(horizontal = horizontalPadding),
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                itemsIndexed(carouselOptions) { index, size ->
+                    val isSelected = size == uiState.stripSize
+                    val width = if (isSelected) selectedWidth else unselectedWidth
+                    val scale by animateFloatAsState(targetValue = if (isSelected) 1.08f else 0.95f, animationSpec = tween(durationMillis = 300))
+
+                    StripSizeCarouselItem(
+                        size = size,
+                        isSelected = isSelected,
+                        scale = scale,
+                        width = width,
+                        onSelect = {
+                            onSelectStripSize(size)
+                        }
+                    )
+
+                    if (index == 0 || index == carouselOptions.lastIndex) {
+                        Spacer(modifier = Modifier.width(horizontalPadding))
                     }
                 }
             }
         }
+
+        LaunchedEffect(uiState.stripSize) {
+            listState.animateScrollToItem(options.size + selectedIndex)
+        }
+
+        LaunchedEffect(listState) {
+            snapshotFlow { listState.isScrollInProgress }
+                .collect { scrolling ->
+                    if (!scrolling) {
+                        val info = listState.layoutInfo
+                        if (info.visibleItemsInfo.isNotEmpty()) {
+                            val viewportCenter = info.viewportEndOffset / 2.0
+                            val nearest = info.visibleItemsInfo.minByOrNull { item ->
+                                abs((item.offset + item.size / 2.0) - viewportCenter)
+                            }
+                            if (nearest != null) {
+                                val centerOffset = ((info.viewportEndOffset - nearest.size) / 2.0).roundToInt()
+                                listState.animateScrollToItem(nearest.index, centerOffset)
+                                val selected = carouselOptions[nearest.index.coerceIn(carouselOptions.indices)]
+                                onSelectStripSize(selected)
+                            }
+                        }
+                    }
+                }
+        }
+
+        LaunchedEffect(listState.firstVisibleItemIndex) {
+            snapshotFlow { listState.firstVisibleItemIndex }
+                .collect { index ->
+                    if (index < options.size) {
+                        listState.scrollToItem(index + options.size)
+                    } else if (index >= options.size * 2) {
+                        listState.scrollToItem(index - options.size)
+                    }
+                }
+        }
     }
     Spacer(modifier = Modifier.height(16.dp))
     KawaiiPrimaryButton(text = "Continue", modifier = Modifier.fillMaxWidth()) { onContinue() }
+}
+
+@Composable
+internal fun StripSizeCarouselItem(
+    size: StripSize,
+    isSelected: Boolean,
+    scale: Float,
+    width: Dp,
+    onSelect: () -> Unit
+) {
+    Surface(
+        shape = androidx.compose.material3.MaterialTheme.shapes.large,
+        color = if (isSelected) SoftLavender.copy(alpha = 0.4f) else WarmCream,
+        modifier = Modifier
+            .width(width)
+            .height(if (isSelected) 280.dp else 240.dp)
+            .clip(RoundedCornerShape(20.dp))
+            .clickable { onSelect() }
+            .background(Color.Transparent)
+            .padding(4.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(12.dp)
+                .graphicsLayer(scaleX = scale, scaleY = scale),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Text(text = size.label, style = androidx.compose.material3.MaterialTheme.typography.titleMedium, color = InkRose)
+            StripPreviewCard(size = size)
+        }
+    }
 }
 
 @Composable

@@ -1,0 +1,78 @@
+{
+  "version": 1,
+  "layoutId": "pb_split_vert_2p_grid",
+  "layoutName": "Pb Split Vert 2P Grid",
+  "layoutType": "pb_split_vert_2p_grid",
+  "paper": {
+    "width": 1200,
+    "height": 1800,
+    "unit": "px",
+    "dpi": 300,
+    "orientation": "portrait"
+  },
+  "output": {
+    "doubleStrip": true,
+    "stripWidth": 600,
+    "stripHeight": 1800
+  },
+  "backgroundImage": "layouts/pb_split_vert_2p_grid.png",
+  "render": {
+    "backgroundColor": "#FFFFFF",
+    "photoFit": "cover",
+    "photoShape": "rectangle",
+    "cornerRadius": 0,
+    "clipPhotos": true
+  },
+  "safeArea": {
+    "left": 40,
+    "top": 40,
+    "right": 40,
+    "bottom": 40
+  },
+  "brandingArea": {
+    "enabled": true,
+    "height": 280
+  },
+  "slots": [
+    {
+      "id": 1,
+      "strip": 1,
+      "x": 40,
+      "y": 301,
+      "width": 520,
+      "height": 390,
+      "rotation": 0,
+      "visible": true
+    },
+    {
+      "id": 2,
+      "strip": 2,
+      "x": 640,
+      "y": 301,
+      "width": 520,
+      "height": 390,
+      "rotation": 0,
+      "visible": true
+    },
+    {
+      "id": 3,
+      "strip": 1,
+      "x": 40,
+      "y": 728,
+      "width": 520,
+      "height": 390,
+      "rotation": 0,
+      "visible": true
+    },
+    {
+      "id": 4,
+      "strip": 2,
+      "x": 640,
+      "y": 728,
+      "width": 520,
+      "height": 390,
+      "rotation": 0,
+      "visible": true
+    }
+  ]
+}

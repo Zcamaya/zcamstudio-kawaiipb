@@ -1,0 +1,85 @@
+{
+  "version": 1,
+  "layoutId": "strip_2x2",
+  "layoutName": "2x2 Photo Strip",
+  "layoutType": "2x2",
+
+  "paper": {
+    "width": 1200,
+    "height": 1800,
+    "unit": "px",
+    "dpi": 300,
+    "orientation": "portrait"
+  },
+
+  "output": {
+    "doubleStrip": true,
+    "stripWidth": 600,
+    "stripHeight": 1800
+  },
+
+  "backgroundImage": "layouts/strip_2x2_base.png",
+
+  "render": {
+    "backgroundColor": "#FFFFFF",
+    "photoFit": "cover",
+    "photoShape": "rectangle",
+    "cornerRadius": 0,
+    "clipPhotos": true
+  },
+
+  "safeArea": {
+    "left": 40,
+    "top": 40,
+    "right": 40,
+    "bottom": 40
+  },
+
+  "brandingArea": {
+    "enabled": true,
+    "height": 280
+  },
+
+  "slots": [
+    {
+      "id": 1,
+      "strip": 1,
+      "x": 40,
+      "y": 301,
+      "width": 520,
+      "height": 384,
+      "rotation": 0,
+      "visible": true
+    },
+    {
+      "id": 2,
+      "strip": 1,
+      "x": 40,
+      "y": 728,
+      "width": 520,
+      "height": 384,
+      "rotation": 0,
+      "visible": true
+    },
+    {
+      "id": 3,
+      "strip": 2,
+      "x": 640,
+      "y": 301,
+      "width": 520,
+      "height": 384,
+      "rotation": 0,
+      "visible": true
+    },
+    {
+      "id": 4,
+      "strip": 2,
+      "x": 640,
+      "y": 728,
+      "width": 520,
+      "height": 384,
+      "rotation": 0,
+      "visible": true
+    }
+  ]
+}

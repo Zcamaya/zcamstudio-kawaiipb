@@ -48,5 +48,10 @@ class FlowPresentationHelpersTest {
         assertEquals("layouts/strip_layout/2x4.png", stripSizePreviewAssetPath(StripSize.TwoByFour))
         assertEquals("layouts/strip_layout/2x3.png", stripSizePreviewAssetPath(StripSize.TwoByThree))
         assertEquals("layouts/strip_layout/2x2.png", stripSizePreviewAssetPath(StripSize.TwoByTwo))
+        assertEquals("layouts/pb_card_uncut_2p_stack.png", stripSizePreviewAssetPath(StripSize.TwoByOneStack))
+        assertEquals("layouts/pb_card_uncut_3p_left.png", stripSizePreviewAssetPath(StripSize.ThreeByOneLeft))
+        assertEquals("layouts/pb_card_uncut_3p_right.png", stripSizePreviewAssetPath(StripSize.ThreeByOneRight))
+        assertEquals("layouts/pb_split_horiz_2p_grid.png", stripSizePreviewAssetPath(StripSize.TwoByTwoGrid))
+        assertEquals("layouts/pb_card_uncut_4p_banner.png", stripSizePreviewAssetPath(StripSize.FourByBanner))
     }
 }

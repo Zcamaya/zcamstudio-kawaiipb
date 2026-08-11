@@ -1,0 +1,118 @@
+{
+  "version": 1,
+  "layoutId": "strip_2x4",
+  "layoutName": "2x4 Photo Strip",
+  "layoutType": "2x4",
+  "paper": {
+    "width": 1200,
+    "height": 1800,
+    "unit": "px",
+    "dpi": 300,
+    "orientation": "portrait"
+  },
+  "output": {
+    "doubleStrip": true,
+    "stripWidth": 600,
+    "stripHeight": 1800
+  },
+  "backgroundImage": "layouts/strip_2x4_base.png",
+  "render": {
+    "backgroundColor": "#FFFFFF",
+    "photoFit": "cover",
+    "photoShape": "rectangle",
+    "cornerRadius": 0,
+    "clipPhotos": true
+  },
+  "safeArea": {
+    "left": 40,
+    "top": 40,
+    "right": 40,
+    "bottom": 40
+  },
+  "brandingArea": {
+    "enabled": true,
+    "height": 280
+  },
+  "slots": [
+    {
+      "id": 1,
+      "strip": 1,
+      "x": 39,
+      "y": 36,
+      "width": 526,
+      "height": 374,
+      "rotation": 0,
+      "visible": true
+    },
+    {
+      "id": 2,
+      "strip": 1,
+      "x": 39,
+      "y": 447,
+      "width": 526,
+      "height": 373,
+      "rotation": 0,
+      "visible": true
+    },
+    {
+      "id": 3,
+      "strip": 1,
+      "x": 39,
+      "y": 858,
+      "width": 526,
+      "height": 373,
+      "rotation": 0,
+      "visible": true
+    },
+    {
+      "id": 4,
+      "strip": 1,
+      "x": 39,
+      "y": 1268,
+      "width": 526,
+      "height": 374,
+      "rotation": 0,
+      "visible": true
+    },
+    {
+      "id": 5,
+      "strip": 2,
+      "x": 644,
+      "y": 36,
+      "width": 526,
+      "height": 374,
+      "rotation": 0,
+      "visible": true
+    },
+    {
+      "id": 6,
+      "strip": 2,
+      "x": 644,
+      "y": 447,
+      "width": 526,
+      "height": 373,
+      "rotation": 0,
+      "visible": true
+    },
+    {
+      "id": 7,
+      "strip": 2,
+      "x": 644,
+      "y": 858,
+      "width": 526,
+      "height": 373,
+      "rotation": 0,
+      "visible": true
+    },
+    {
+      "id": 8,
+      "strip": 2,
+      "x": 644,
+      "y": 1268,
+      "width": 526,
+      "height": 374,
+      "rotation": 0,
+      "visible": true
+    }
+  ]
+}

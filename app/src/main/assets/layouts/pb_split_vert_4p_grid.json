@@ -1,0 +1,118 @@
+{
+  "version": 1,
+  "layoutId": "pb_split_vert_4p_grid",
+  "layoutName": "Pb Split Vert 4P Grid",
+  "layoutType": "pb_split_vert_4p_grid",
+  "paper": {
+    "width": 1200,
+    "height": 1800,
+    "unit": "px",
+    "dpi": 300,
+    "orientation": "portrait"
+  },
+  "output": {
+    "doubleStrip": true,
+    "stripWidth": 600,
+    "stripHeight": 1800
+  },
+  "backgroundImage": "layouts/pb_split_vert_4p_grid.png",
+  "render": {
+    "backgroundColor": "#FFFFFF",
+    "photoFit": "cover",
+    "photoShape": "rectangle",
+    "cornerRadius": 0,
+    "clipPhotos": true
+  },
+  "safeArea": {
+    "left": 40,
+    "top": 40,
+    "right": 40,
+    "bottom": 40
+  },
+  "brandingArea": {
+    "enabled": true,
+    "height": 280
+  },
+  "slots": [
+    {
+      "id": 1,
+      "strip": 1,
+      "x": 37,
+      "y": 34,
+      "width": 530,
+      "height": 378,
+      "rotation": 0,
+      "visible": true
+    },
+    {
+      "id": 2,
+      "strip": 2,
+      "x": 642,
+      "y": 34,
+      "width": 530,
+      "height": 378,
+      "rotation": 0,
+      "visible": true
+    },
+    {
+      "id": 3,
+      "strip": 1,
+      "x": 37,
+      "y": 445,
+      "width": 530,
+      "height": 378,
+      "rotation": 0,
+      "visible": true
+    },
+    {
+      "id": 4,
+      "strip": 2,
+      "x": 642,
+      "y": 445,
+      "width": 530,
+      "height": 378,
+      "rotation": 0,
+      "visible": true
+    },
+    {
+      "id": 5,
+      "strip": 1,
+      "x": 38,
+      "y": 856,
+      "width": 529,
+      "height": 377,
+      "rotation": 0,
+      "visible": true
+    },
+    {
+      "id": 6,
+      "strip": 2,
+      "x": 643,
+      "y": 856,
+      "width": 529,
+      "height": 377,
+      "rotation": 0,
+      "visible": true
+    },
+    {
+      "id": 7,
+      "strip": 1,
+      "x": 38,
+      "y": 1267,
+      "width": 529,
+      "height": 377,
+      "rotation": 0,
+      "visible": true
+    },
+    {
+      "id": 8,
+      "strip": 2,
+      "x": 643,
+      "y": 1267,
+      "width": 529,
+      "height": 377,
+      "rotation": 0,
+      "visible": true
+    }
+  ]
+}

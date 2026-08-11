@@ -85,7 +85,7 @@ class InMemoryKioskRepository : KioskRepository {
         delay(100)
         return KioskSessionCatalog(
             cameraModes = listOf(CameraMode.Classic, CameraMode.Elevator),
-            stripSizes = listOf(StripSize.TwoByFour),
+            stripSizes = StripSize.values().toList(),
             // templates and stickers removed
         )
     }

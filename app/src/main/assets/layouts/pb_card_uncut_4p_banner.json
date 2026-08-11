@@ -1,0 +1,78 @@
+{
+  "version": 1,
+  "layoutId": "pb_card_uncut_4p_banner",
+  "layoutName": "Pb Card Uncut 4P Banner",
+  "layoutType": "pb_card_uncut_4p_banner",
+  "paper": {
+    "width": 1800,
+    "height": 1200,
+    "unit": "px",
+    "dpi": 300,
+    "orientation": "portrait"
+  },
+  "output": {
+    "doubleStrip": true,
+    "stripWidth": 900,
+    "stripHeight": 1200
+  },
+  "backgroundImage": "layouts/pb_card_uncut_4p_banner.png",
+  "render": {
+    "backgroundColor": "#FFFFFF",
+    "photoFit": "cover",
+    "photoShape": "rectangle",
+    "cornerRadius": 0,
+    "clipPhotos": true
+  },
+  "safeArea": {
+    "left": 40,
+    "top": 40,
+    "right": 40,
+    "bottom": 40
+  },
+  "brandingArea": {
+    "enabled": true,
+    "height": 280
+  },
+  "slots": [
+    {
+      "id": 1,
+      "strip": 1,
+      "x": 96,
+      "y": 51,
+      "width": 956,
+      "height": 682,
+      "rotation": 0,
+      "visible": true
+    },
+    {
+      "id": 2,
+      "strip": 2,
+      "x": 96,
+      "y": 785,
+      "width": 509,
+      "height": 333,
+      "rotation": 0,
+      "visible": true
+    },
+    {
+      "id": 3,
+      "strip": 2,
+      "x": 645,
+      "y": 785,
+      "width": 509,
+      "height": 333,
+      "rotation": 0,
+      "visible": true
+    },
+    {
+      "id": 4,
+      "strip": 2,
+      "x": 1195,
+      "y": 785,
+      "width": 509,
+      "height": 333,
+      "rotation": 0,
+      "visible": true
+    }
+  ]
+}

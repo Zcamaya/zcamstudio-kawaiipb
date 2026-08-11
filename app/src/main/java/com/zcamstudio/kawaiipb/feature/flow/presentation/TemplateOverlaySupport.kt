@@ -289,6 +289,11 @@ fun parseStripSize(value: String): StripSize = when (value.lowercase()) {
     "2x4", "2 x 4", "four", "2by4", "2-by-4" -> StripSize.TwoByFour
     "2x3", "2 x 3", "three", "2by3", "2-by-3" -> StripSize.TwoByThree
     "2x2", "2 x 2", "two", "2by2", "2-by-2" -> StripSize.TwoByTwo
+    "2x1 stack", "2 x 1 stack", "2by1", "2-by-1", "stack" -> StripSize.TwoByOneStack
+    "3x1 left", "3 x 1 left", "3by1 left", "3-by-1 left", "three left" -> StripSize.ThreeByOneLeft
+    "3x1 right", "3 x 1 right", "3by1 right", "3-by-1 right", "three right" -> StripSize.ThreeByOneRight
+    "2x2 grid", "2 x 2 grid", "grid" -> StripSize.TwoByTwoGrid
+    "4x1 banner", "4 x 1 banner", "4by1", "4-by-1", "banner" -> StripSize.FourByBanner
     else -> StripSize.TwoByFour
 }
 
@@ -296,4 +301,9 @@ private fun stripSizeFolderName(stripSize: StripSize): String = when (stripSize)
     StripSize.TwoByFour -> "2x4"
     StripSize.TwoByThree -> "2x3"
     StripSize.TwoByTwo -> "2x2"
+    StripSize.TwoByOneStack -> "2x1-stack"
+    StripSize.ThreeByOneLeft -> "3x1-left"
+    StripSize.ThreeByOneRight -> "3x1-right"
+    StripSize.TwoByTwoGrid -> "2x2-grid"
+    StripSize.FourByBanner -> "4x1-banner"
 }

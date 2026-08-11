@@ -42,12 +42,22 @@ fun stripSizePreviewAssetPath(size: StripSize): String = when (size) {
     StripSize.TwoByFour -> "layouts/strip_layout/2x4.png"
     StripSize.TwoByThree -> "layouts/strip_layout/2x3.png"
     StripSize.TwoByTwo -> "layouts/strip_layout/2x2.png"
+    StripSize.TwoByOneStack -> "layouts/pb_card_uncut_2p_stack.png"
+    StripSize.ThreeByOneLeft -> "layouts/pb_card_uncut_3p_left.png"
+    StripSize.ThreeByOneRight -> "layouts/pb_card_uncut_3p_right.png"
+    StripSize.TwoByTwoGrid -> "layouts/pb_split_horiz_2p_grid.png"
+    StripSize.FourByBanner -> "layouts/pb_card_uncut_4p_banner.png"
 }
 
 fun stripSizeLayoutAssetPath(size: StripSize): String = when (size) {
-    StripSize.TwoByFour -> "layouts/strip_2x4.json"
-    StripSize.TwoByThree -> "layouts/strip_2x3.json"
-    StripSize.TwoByTwo -> "layouts/strip_2x2.json"
+    StripSize.TwoByFour -> "layouts/pb_split_vert_4p_grid.json"
+    StripSize.TwoByThree -> "layouts/pb_split_vert_3p_grid.json"
+    StripSize.TwoByTwo -> "layouts/pb_split_vert_2p_grid.json"
+    StripSize.TwoByOneStack -> "layouts/pb_card_uncut_2p_stack.json"
+    StripSize.ThreeByOneLeft -> "layouts/pb_card_uncut_3p_left.json"
+    StripSize.ThreeByOneRight -> "layouts/pb_card_uncut_3p_right.json"
+    StripSize.TwoByTwoGrid -> "layouts/pb_split_horiz_2p_grid.json"
+    StripSize.FourByBanner -> "layouts/pb_card_uncut_4p_banner.json"
 }
 
 fun flowStageTitle(stage: KioskFlowStage): String = when (stage) {
@@ -193,7 +203,7 @@ fun parseStripLayout(json: JSONObject): StripLayout {
     )
 }
 
-fun resolveLayoutAssetPath(layout: StripLayout?, fallbackAssetPath: String = "layouts/strip_2x4_base.png"): String? {
+fun resolveLayoutAssetPath(layout: StripLayout?, fallbackAssetPath: String = "layouts/pb_split_vert_4p_grid.png"): String? {
     return layout?.backgroundImage?.takeIf { it.isNotBlank() }
         ?: fallbackAssetPath.takeIf { it.isNotBlank() }
 }

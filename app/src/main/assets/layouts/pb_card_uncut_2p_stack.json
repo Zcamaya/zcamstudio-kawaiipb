@@ -1,0 +1,58 @@
+{
+  "version": 1,
+  "layoutId": "pb_card_uncut_2p_stack",
+  "layoutName": "Pb Card Uncut 2P Stack",
+  "layoutType": "pb_card_uncut_2p_stack",
+  "paper": {
+    "width": 1200,
+    "height": 1800,
+    "unit": "px",
+    "dpi": 300,
+    "orientation": "portrait"
+  },
+  "output": {
+    "doubleStrip": true,
+    "stripWidth": 600,
+    "stripHeight": 1800
+  },
+  "backgroundImage": "layouts/pb_card_uncut_2p_stack.png",
+  "render": {
+    "backgroundColor": "#FFFFFF",
+    "photoFit": "cover",
+    "photoShape": "rectangle",
+    "cornerRadius": 0,
+    "clipPhotos": true
+  },
+  "safeArea": {
+    "left": 40,
+    "top": 40,
+    "right": 40,
+    "bottom": 40
+  },
+  "brandingArea": {
+    "enabled": true,
+    "height": 280
+  },
+  "slots": [
+    {
+      "id": 1,
+      "strip": 1,
+      "x": 43,
+      "y": 67,
+      "width": 1114,
+      "height": 662,
+      "rotation": 0,
+      "visible": true
+    },
+    {
+      "id": 2,
+      "strip": 2,
+      "x": 40,
+      "y": 766,
+      "width": 1114,
+      "height": 662,
+      "rotation": 0,
+      "visible": true
+    }
+  ]
+}

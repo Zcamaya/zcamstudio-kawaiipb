@@ -6,6 +6,12 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -39,11 +45,8 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import kotlin.math.abs
-import kotlin.math.roundToInt
 import com.zcamstudio.kawaiipb.core.designsystem.*
 // BrushTool removed
 import com.zcamstudio.kawaiipb.domain.model.KioskFlowStage
@@ -101,27 +104,6 @@ internal fun FlowStripSizeStage(
 
         LaunchedEffect(uiState.stripSize) {
             listState.animateScrollToItem(options.size + selectedIndex)
-        }
-
-        LaunchedEffect(listState) {
-            snapshotFlow { listState.isScrollInProgress }
-                .collect { scrolling ->
-                    if (!scrolling) {
-                        val info = listState.layoutInfo
-                        if (info.visibleItemsInfo.isNotEmpty()) {
-                            val viewportCenter = info.viewportEndOffset / 2.0
-                            val nearest = info.visibleItemsInfo.minByOrNull { item ->
-                                abs((item.offset + item.size / 2.0) - viewportCenter)
-                            }
-                            if (nearest != null) {
-                                val centerOffset = ((info.viewportEndOffset - nearest.size) / 2.0).roundToInt()
-                                listState.animateScrollToItem(nearest.index, centerOffset)
-                                val selected = carouselOptions[nearest.index.coerceIn(carouselOptions.indices)]
-                                onSelectStripSize(selected)
-                            }
-                        }
-                    }
-                }
         }
 
         LaunchedEffect(listState.firstVisibleItemIndex) {

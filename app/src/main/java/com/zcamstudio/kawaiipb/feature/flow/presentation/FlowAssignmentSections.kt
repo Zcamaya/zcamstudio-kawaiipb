@@ -1,5 +1,6 @@
 package com.zcamstudio.kawaiipb.feature.flow.presentation
 
+import android.content.Context
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -71,6 +72,8 @@ import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.verticalScroll
+import java.io.File
+import kotlin.math.PI
 import kotlin.math.max
 import kotlin.math.atan2
 import kotlin.math.cos
@@ -100,6 +103,13 @@ internal fun FlowPhotoAssignmentStage(
     onSelectTemplateOverlay: (String?) -> Unit,
     onSelectAssignedFrame: (Int) -> Unit,
     onSelectCapturedPhoto: (Int) -> Unit,
+    onAddSticker: (String) -> Unit,
+    onSelectSticker: (Int?) -> Unit,
+    onUpdateStickerPosition: (Int, Float, Float) -> Unit,
+    onUpdateStickerScale: (Int, Float) -> Unit,
+    onUpdateStickerRotation: (Int, Float) -> Unit,
+    onFlipSticker: (Int) -> Unit,
+    onRemoveSticker: (Int) -> Unit,
     onRemoveFrame: (Int) -> Unit,
     onUpdatePhotoAssignmentTransform: (Int, Float, Float, Float, Float) -> Unit,
     onResetPhotoAssignmentTransform: (Int) -> Unit,
@@ -145,9 +155,17 @@ internal fun FlowPhotoAssignmentStage(
                         transforms = uiState.photoAssignmentTransforms,
                         capturedFrames = uiState.capturedFrames,
                         selectedTemplateFolderPath = uiState.selectedTemplateFolderPath,
+                        placedStickers = uiState.placedStickers,
+                        selectedStickerId = uiState.selectedStickerId,
                         stripSize = uiState.stripSize,
                         onSelectFrame = onSelectAssignedFrame,
                         onRemoveFrame = onRemoveFrame,
+                        onSelectSticker = onSelectSticker,
+                        onUpdateStickerPosition = onUpdateStickerPosition,
+                        onUpdateStickerScale = onUpdateStickerScale,
+                        onUpdateStickerRotation = onUpdateStickerRotation,
+                        onFlipSticker = onFlipSticker,
+                        onRemoveSticker = onRemoveSticker,
                         onUpdatePhotoTransform = onUpdatePhotoAssignmentTransform,
                         onResetPhotoTransform = onResetPhotoAssignmentTransform
                     )
@@ -348,19 +366,62 @@ internal fun FlowPhotoAssignmentStage(
                                             }
                                         }
                                     }
-                                }
+                                    }
                             }
                             2 -> {
+                                val stickerOptions = remember(context) { listStickerAssetOptions(context) }
                                 Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                                    listOf("Heart", "Sparkle", "Star").forEach { sticker ->
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(text = "Stickers", color = InkRose, style = MaterialTheme.typography.titleMedium)
+                                        Text(
+                                            text = "${stickerOptions.size} found",
+                                            color = SoftText,
+                                            style = MaterialTheme.typography.bodySmall
+                                        )
+                                    }
+
+                                    if (stickerOptions.isEmpty()) {
                                         Surface(
-                                            shape = RoundedCornerShape(16.dp),
-                                            color = Color.White,
+                                            shape = RoundedCornerShape(18.dp),
+                                            color = WarmCream.copy(alpha = 0.55f),
                                             border = BorderStroke(1.dp, Color(0xFFE8DDE8)),
                                             modifier = Modifier.fillMaxWidth()
                                         ) {
-                                            Box(modifier = Modifier.padding(12.dp)) {
-                                                Text(text = sticker, color = InkRose, style = MaterialTheme.typography.bodyMedium)
+                                            Column(
+                                                modifier = Modifier.padding(12.dp),
+                                                verticalArrangement = Arrangement.spacedBy(4.dp)
+                                            ) {
+                                                Text(
+                                                    text = "No sticker assets found",
+                                                    color = InkRose,
+                                                    style = MaterialTheme.typography.bodyLarge
+                                                )
+                                                Text(
+                                                    text = "Add PNG, JPG, or WEBP files to app/src/main/assets/stickers to make them appear here.",
+                                                    color = SoftText,
+                                                    style = MaterialTheme.typography.bodyMedium
+                                                )
+                                            }
+                                        }
+                                    } else {
+                                        LazyVerticalGrid(
+                                            columns = GridCells.Adaptive(minSize = 132.dp),
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .heightIn(min = 180.dp, max = 360.dp),
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                                            contentPadding = PaddingValues(bottom = 4.dp)
+                                        ) {
+                                            items(stickerOptions) { sticker ->
+                                                StickerOptionCard(
+                                                    sticker = sticker,
+                                                    onClick = { onAddSticker(sticker.assetPath) }
+                                                )
                                             }
                                         }
                                     }
@@ -395,9 +456,17 @@ internal fun FlowGraphicToolWorkspace(
     transforms: List<PhotoTransform>,
     capturedFrames: List<CaptureFrame>,
     selectedTemplateFolderPath: String?,
+    placedStickers: List<PlacedSticker>,
+    selectedStickerId: Int?,
     stripSize: StripSize,
     onSelectFrame: (Int) -> Unit,
     onRemoveFrame: (Int) -> Unit,
+    onSelectSticker: (Int?) -> Unit,
+    onUpdateStickerPosition: (Int, Float, Float) -> Unit,
+    onUpdateStickerScale: (Int, Float) -> Unit,
+    onUpdateStickerRotation: (Int, Float) -> Unit,
+    onFlipSticker: (Int) -> Unit,
+    onRemoveSticker: (Int) -> Unit,
     onUpdatePhotoTransform: (Int, Float, Float, Float, Float) -> Unit,
     onResetPhotoTransform: (Int) -> Unit
 ) {
@@ -417,9 +486,17 @@ internal fun FlowGraphicToolWorkspace(
             capturedFrames = capturedFrames,
             selectedSlot = selectedSlot,
             selectedTemplateFolderPath = selectedTemplateFolderPath,
+            placedStickers = placedStickers,
+            selectedStickerId = selectedStickerId,
             stripSize = stripSize,
             onSelectFrame = onSelectFrame,
             onRemoveFrame = onRemoveFrame,
+            onSelectSticker = onSelectSticker,
+            onUpdateStickerPosition = onUpdateStickerPosition,
+            onUpdateStickerScale = onUpdateStickerScale,
+            onUpdateStickerRotation = onUpdateStickerRotation,
+            onFlipSticker = onFlipSticker,
+            onRemoveSticker = onRemoveSticker,
             onUpdatePhotoTransform = onUpdatePhotoTransform,
             onResetPhotoTransform = onResetPhotoTransform,
             modifier = Modifier.fillMaxSize()
@@ -458,9 +535,17 @@ internal fun FlowAssignmentLayoutPreview(
     capturedFrames: List<CaptureFrame>,
     selectedSlot: Int?,
     selectedTemplateFolderPath: String?,
+    placedStickers: List<PlacedSticker>,
+    selectedStickerId: Int?,
     stripSize: StripSize,
     onSelectFrame: (Int) -> Unit,
     onRemoveFrame: (Int) -> Unit,
+    onSelectSticker: (Int?) -> Unit,
+    onUpdateStickerPosition: (Int, Float, Float) -> Unit,
+    onUpdateStickerScale: (Int, Float) -> Unit,
+    onUpdateStickerRotation: (Int, Float) -> Unit,
+    onFlipSticker: (Int) -> Unit,
+    onRemoveSticker: (Int) -> Unit,
     onUpdatePhotoTransform: (Int, Float, Float, Float, Float) -> Unit,
     onResetPhotoTransform: (Int) -> Unit,
     modifier: Modifier = Modifier
@@ -629,6 +714,21 @@ internal fun FlowAssignmentLayoutPreview(
                     modifier = Modifier.fillMaxSize()
                 )
             }
+
+            placedStickers.forEach { sticker ->
+                StickerOverlayItem(
+                    sticker = sticker,
+                    selected = sticker.id == selectedStickerId,
+                    previewWidth = targetWidth,
+                    previewHeight = targetHeight,
+                    onSelect = { onSelectSticker(sticker.id) },
+                    onMove = { centerX, centerY -> onUpdateStickerPosition(sticker.id, centerX, centerY) },
+                    onScale = { scale -> onUpdateStickerScale(sticker.id, scale) },
+                    onRotate = { rotation -> onUpdateStickerRotation(sticker.id, rotation) },
+                    onFlip = { onFlipSticker(sticker.id) },
+                    onRemove = { onRemoveSticker(sticker.id) }
+                )
+            }
         }
     }
 }
@@ -700,6 +800,223 @@ internal fun FlowPrintSheetPreview(
             }
         }
     }
+}
+
+@Composable
+private fun StickerOptionCard(
+    sticker: StickerAssetOption,
+    onClick: () -> Unit
+) {
+    val context = LocalContext.current
+    val previewImage = remember(sticker.assetPath) { loadAssetImage(context, sticker.assetPath) }
+
+    Surface(
+        shape = RoundedCornerShape(18.dp),
+        color = Color.White,
+        border = BorderStroke(1.dp, Color(0xFFE8DDE8)),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() }
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(0.dp)) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(108.dp)
+                    .background(WarmCream.copy(alpha = 0.65f)),
+                contentAlignment = Alignment.Center
+            ) {
+                if (previewImage != null) {
+                    Image(
+                        bitmap = previewImage,
+                        contentDescription = sticker.displayName,
+                        contentScale = ContentScale.Fit,
+                        modifier = Modifier.fillMaxSize().padding(10.dp)
+                    )
+                } else {
+                    Text(
+                        text = "Sticker",
+                        color = SoftText,
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
+            }
+
+            Column(
+                modifier = Modifier.padding(12.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                Text(text = sticker.displayName, color = InkRose, style = MaterialTheme.typography.titleSmall)
+                Text(text = "Tap to add", color = SoftText, style = MaterialTheme.typography.bodySmall)
+            }
+        }
+    }
+}
+
+@Composable
+private fun StickerOverlayItem(
+    sticker: PlacedSticker,
+    selected: Boolean,
+    previewWidth: androidx.compose.ui.unit.Dp,
+    previewHeight: androidx.compose.ui.unit.Dp,
+    onSelect: () -> Unit,
+    onMove: (Float, Float) -> Unit,
+    onScale: (Float) -> Unit,
+    onRotate: (Float) -> Unit,
+    onFlip: () -> Unit,
+    onRemove: () -> Unit
+) {
+    val context = LocalContext.current
+    val density = LocalDensity.current
+    val imageBitmap = remember(sticker.assetPath) { loadAssetImage(context, sticker.assetPath) }
+    val aspectRatio = imageBitmap?.let {
+        if (it.height > 0) it.width.toFloat() / it.height.toFloat() else 1f
+    } ?: 1f
+    val baseHeight = 88.dp
+    val boxHeight = (baseHeight * sticker.scale.coerceIn(0.45f, 2.4f))
+    val boxWidth = (boxHeight * aspectRatio).coerceAtLeast(56.dp)
+    val previewWidthPx = with(density) { previewWidth.toPx().coerceAtLeast(1f) }
+    val previewHeightPx = with(density) { previewHeight.toPx().coerceAtLeast(1f) }
+    val itemWidthPx = with(density) { boxWidth.toPx() }
+    val itemHeightPx = with(density) { boxHeight.toPx() }
+    val centerX = sticker.centerX.coerceIn(0f, 1f) * previewWidthPx
+    val centerY = sticker.centerY.coerceIn(0f, 1f) * previewHeightPx
+    val topLeftX = (centerX - itemWidthPx / 2f).coerceIn(0f, (previewWidthPx - itemWidthPx).coerceAtLeast(0f))
+    val topLeftY = (centerY - itemHeightPx / 2f).coerceIn(0f, (previewHeightPx - itemHeightPx).coerceAtLeast(0f))
+
+    Box(
+        modifier = Modifier
+            .absoluteOffset(x = with(density) { topLeftX.toDp() }, y = with(density) { topLeftY.toDp() })
+            .width(boxWidth)
+            .height(boxHeight)
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .clip(RoundedCornerShape(18.dp))
+                .border(
+                    width = if (selected) 2.dp else 1.dp,
+                    color = if (selected) CherryPink else Color.White.copy(alpha = 0.55f),
+                    shape = RoundedCornerShape(18.dp)
+                )
+                .background(Color.White.copy(alpha = 0.03f))
+                .pointerInput(sticker.id) {
+                    detectTapGestures(onTap = { if (!selected) onSelect() })
+                }
+                .pointerInput(sticker.id) {
+                    var currentCenterX = sticker.centerX
+                    var currentCenterY = sticker.centerY
+                    var currentScale = sticker.scale
+                    var currentRotation = sticker.rotation
+
+                    detectTransformGestures { _, pan, zoom, rotation ->
+                        if (!selected) onSelect()
+
+                        currentCenterX = (currentCenterX + (pan.x / previewWidthPx)).coerceIn(0f, 1f)
+                        currentCenterY = (currentCenterY + (pan.y / previewHeightPx)).coerceIn(0f, 1f)
+                        currentScale = (currentScale * zoom).coerceIn(0.45f, 2.4f)
+                        currentRotation = currentRotation + (rotation * 180f / PI.toFloat())
+
+                        if (pan != Offset.Zero) {
+                            onMove(currentCenterX, currentCenterY)
+                        }
+                        if (zoom != 1f) {
+                            onScale(currentScale)
+                        }
+                        if (rotation != 0f) {
+                            onRotate(currentRotation)
+                        }
+                    }
+                },
+            contentAlignment = Alignment.Center
+        ) {
+            if (imageBitmap != null) {
+                Image(
+                    bitmap = imageBitmap,
+                    contentDescription = sticker.assetPath.substringAfterLast('/'),
+                    contentScale = ContentScale.Fit,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .graphicsLayer(
+                            scaleX = if (sticker.flipped) -1f else 1f,
+                            scaleY = 1f,
+                            rotationZ = sticker.rotation
+                        )
+                )
+            }
+        }
+
+        if (selected) {
+            CornerActionButton(
+                label = "×",
+                modifier = Modifier.align(Alignment.TopEnd).offset(x = 10.dp, y = (-10).dp),
+                backgroundColor = Color(0xFFFF5D5D),
+                borderColor = Color(0xFFD83A3A),
+                onClick = onRemove
+            )
+            CornerActionButton(
+                label = "⇋",
+                modifier = Modifier.align(Alignment.BottomStart).offset(x = (-10).dp, y = 10.dp),
+                onClick = onFlip
+            )
+        }
+    }
+}
+
+@Composable
+private fun CornerActionButton(
+    label: String,
+    modifier: Modifier = Modifier,
+    backgroundColor: Color = Color.White,
+    borderColor: Color = Color(0xFFE0D6E6),
+    onClick: () -> Unit
+) {
+    Box(
+        modifier = modifier
+            .size(24.dp)
+            .clip(CircleShape)
+            .background(backgroundColor)
+            .border(1.dp, borderColor, CircleShape)
+            .clickable { onClick() },
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = label,
+            color = if (backgroundColor == Color.White) InkRose else Color.White,
+            style = MaterialTheme.typography.labelSmall
+        )
+    }
+}
+
+data class StickerAssetOption(
+    val displayName: String,
+    val assetPath: String
+)
+
+private val supportedStickerExtensions = setOf("png", "jpg", "jpeg", "webp", "bmp")
+
+private fun listStickerAssetOptions(context: Context): List<StickerAssetOption> {
+    val assetNames = try {
+        context.assets.list("stickers")?.toList().orEmpty()
+    } catch (_: Exception) {
+        emptyList()
+    }
+
+    return assetNames
+        .filter { name -> name.substringAfterLast('.', "").lowercase() in supportedStickerExtensions }
+        .map { name ->
+            StickerAssetOption(
+                displayName = name.substringBeforeLast('.')
+                    .replace(Regex("[_\\-]+"), " ")
+                    .replace(Regex("\\s+"), " ")
+                    .trim()
+                    .split(' ')
+                    .joinToString(" ") { part -> part.lowercase().replaceFirstChar { ch -> ch.titlecase() } }
+                    .ifBlank { name.substringBeforeLast('.') },
+                assetPath = "stickers/$name"
+            )
+        }
+        .sortedBy { it.displayName.lowercase() }
 }
 
 @Composable

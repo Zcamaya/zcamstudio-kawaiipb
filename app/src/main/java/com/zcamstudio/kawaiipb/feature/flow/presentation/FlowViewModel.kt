@@ -211,7 +211,91 @@ class FlowViewModel(
         _uiState.update { it.copy(selectedTemplateFolderPath = path) }
     }
 
-    // Template screen removed
+    fun addSticker(assetPath: String) {
+        _uiState.update { state ->
+            val nextId = (state.placedStickers.maxOfOrNull { it.id } ?: 0) + 1
+            state.copy(
+                placedStickers = state.placedStickers + PlacedSticker(
+                    id = nextId,
+                    assetPath = assetPath,
+                    centerX = 0.5f,
+                    centerY = 0.42f + (state.placedStickers.size * 0.06f).coerceAtMost(0.24f),
+                    scale = 1f
+                ),
+                selectedStickerId = nextId,
+                summaryMessage = "Sticker added"
+            )
+        }
+    }
+
+    fun selectSticker(stickerId: Int?) {
+        _uiState.update { it.copy(selectedStickerId = stickerId) }
+    }
+
+    fun updateStickerPosition(stickerId: Int, centerX: Float, centerY: Float) {
+        _uiState.update { state ->
+            val updated = state.placedStickers.map { sticker ->
+                if (sticker.id == stickerId) {
+                    sticker.copy(
+                        centerX = centerX.coerceIn(0.08f, 0.92f),
+                        centerY = centerY.coerceIn(0.08f, 0.92f)
+                    )
+                } else {
+                    sticker
+                }
+            }
+            state.copy(placedStickers = updated)
+        }
+    }
+
+    fun updateStickerScale(stickerId: Int, scale: Float) {
+        _uiState.update { state ->
+            val updated = state.placedStickers.map { sticker ->
+                if (sticker.id == stickerId) {
+                    sticker.copy(scale = scale.coerceIn(0.45f, 2.4f))
+                } else {
+                    sticker
+                }
+            }
+            state.copy(placedStickers = updated)
+        }
+    }
+
+    fun updateStickerRotation(stickerId: Int, rotation: Float) {
+        _uiState.update { state ->
+            val updated = state.placedStickers.map { sticker ->
+                if (sticker.id == stickerId) {
+                    sticker.copy(rotation = rotation)
+                } else {
+                    sticker
+                }
+            }
+            state.copy(placedStickers = updated)
+        }
+    }
+
+    fun flipSticker(stickerId: Int) {
+        _uiState.update { state ->
+            val updated = state.placedStickers.map { sticker ->
+                if (sticker.id == stickerId) {
+                    sticker.copy(flipped = !sticker.flipped)
+                } else {
+                    sticker
+                }
+            }
+            state.copy(placedStickers = updated)
+        }
+    }
+
+    fun removeSticker(stickerId: Int) {
+        _uiState.update { state ->
+            state.copy(
+                placedStickers = state.placedStickers.filterNot { it.id == stickerId },
+                selectedStickerId = if (state.selectedStickerId == stickerId) null else state.selectedStickerId,
+                summaryMessage = "Sticker removed"
+            )
+        }
+    }
 
     fun setBrushTool(tool: BrushTool) {
         _uiState.update { it.copy(activeTool = tool, summaryMessage = "${tool.name} tool active") }
@@ -239,8 +323,6 @@ class FlowViewModel(
         // Drawing/stickers removed — go to preview
         setStage(KioskFlowStage.Preview, "Review the final strip")
     }
-
-    // Sticker functions removed
 
     fun beginPrinting() {
         val currentSessionId = uiState.value.sessionId

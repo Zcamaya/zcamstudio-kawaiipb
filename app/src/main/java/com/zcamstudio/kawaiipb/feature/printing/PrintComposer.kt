@@ -10,6 +10,7 @@ import com.zcamstudio.kawaiipb.domain.model.CaptureFrame
 import com.zcamstudio.kawaiipb.domain.model.StripLayout
 import com.zcamstudio.kawaiipb.domain.model.StripSize
 import com.zcamstudio.kawaiipb.feature.flow.presentation.FlowUiState
+import com.zcamstudio.kawaiipb.feature.flow.presentation.PlacedSticker
 import com.zcamstudio.kawaiipb.feature.flow.presentation.PhotoTransform
 import com.zcamstudio.kawaiipb.feature.flow.presentation.parseStripSize
 import com.zcamstudio.kawaiipb.feature.flow.presentation.resolveLayoutAssetPath
@@ -244,6 +245,17 @@ object PrintComposer {
             }
         }
 
+        uiState.placedStickers.forEach { sticker ->
+            val stickerBitmap = loadStickerBitmap(storageService, sticker.assetPath) ?: return@forEach
+            drawStickerBitmap(
+                canvas = canvas,
+                stickerBitmap = stickerBitmap,
+                sticker = sticker,
+                outputWidth = outputWidth,
+                outputHeight = outputHeight
+            )
+        }
+
         progressCallback?.invoke(0.75f, "Saving PDF file")
         val saved = savePrintFile(storageService, uiState.sessionId, bitmap)
         if (saved) progressCallback?.invoke(1f, "PDF created successfully")
@@ -265,6 +277,39 @@ object PrintComposer {
         canvas.rotate(transform.rotation, destRect.centerX(), destRect.centerY())
         canvas.drawBitmap(photoBitmap, null, destRect, null)
         canvas.restore()
+    }
+
+    private fun drawStickerBitmap(
+        canvas: Canvas,
+        stickerBitmap: Bitmap,
+        sticker: PlacedSticker,
+        outputWidth: Int,
+        outputHeight: Int
+    ) {
+        val aspectRatio = if (stickerBitmap.height > 0) stickerBitmap.width.toFloat() / stickerBitmap.height.toFloat() else 1f
+        val baseHeight = min(outputWidth, outputHeight) * 0.16f * sticker.scale.coerceIn(0.45f, 2.4f)
+        val drawWidth = baseHeight * aspectRatio
+        val drawHeight = baseHeight
+        val centerX = sticker.centerX.coerceIn(0f, 1f) * outputWidth.toFloat()
+        val centerY = sticker.centerY.coerceIn(0f, 1f) * outputHeight.toFloat()
+        val left = centerX - drawWidth / 2f
+        val top = centerY - drawHeight / 2f
+
+        canvas.save()
+        canvas.translate(left + drawWidth / 2f, top + drawHeight / 2f)
+        canvas.rotate(sticker.rotation)
+        canvas.scale(if (sticker.flipped) -1f else 1f, 1f)
+        val destRect = RectF(-drawWidth / 2f, -drawHeight / 2f, drawWidth / 2f, drawHeight / 2f)
+        canvas.drawBitmap(stickerBitmap, null, destRect, null)
+        canvas.restore()
+    }
+
+    private fun loadStickerBitmap(storageService: KawaiiStorageService, assetPath: String): Bitmap? {
+        return try {
+            storageService.openAsset(assetPath)?.use { BitmapFactory.decodeStream(it) }
+        } catch (_: Exception) {
+            null
+        }
     }
 
     private fun loadPreparedBitmapForSlot(path: String, slotRect: RectF, transform: PhotoTransform): Bitmap? {

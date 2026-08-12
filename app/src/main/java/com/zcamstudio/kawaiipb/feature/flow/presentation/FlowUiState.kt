@@ -8,7 +8,16 @@ import com.zcamstudio.kawaiipb.domain.model.KioskFlowStage
 import com.zcamstudio.kawaiipb.domain.model.KioskSessionCatalog
 import com.zcamstudio.kawaiipb.domain.model.PrintStep
 import com.zcamstudio.kawaiipb.domain.model.StripSize
-// Template, drawing, and sticker models removed
+
+data class PlacedSticker(
+    val id: Int,
+    val assetPath: String,
+    val centerX: Float = 0.5f,
+    val centerY: Float = 0.5f,
+    val scale: Float = 1f,
+    val rotation: Float = 0f,
+    val flipped: Boolean = false
+)
 
 data class PhotoTransform(
     val scale: Float = 1f,
@@ -49,13 +58,14 @@ data class FlowUiState(
     val photoAssignmentTransforms: List<PhotoTransform> = List(8) { PhotoTransform(PhotoAssignmentInitialScale) },
     val photoAssignmentSelectedSlot: Int? = null,
     val photoAssignmentShowCapturedList: Boolean = true,
+    val placedStickers: List<PlacedSticker> = emptyList(),
+    val selectedStickerId: Int? = null,
     val captureShotCountdown: Int = 0,
     val isCaptureCountdownActive: Boolean = false,
     val captureRequestToken: Int = 0,
     val isCameraReady: Boolean = false,
     val isCaptureInProgress: Boolean = false,
     val cameraError: String? = null,
-    // drawing and sticker state removed
     val activeTool: BrushTool = BrushTool.Brush,
     val activeColorArgb: Long = 0xFFFF7FA7,
     val brushSize: Float = 10f,

@@ -16,6 +16,8 @@ Last updated: 2026-08-12
 - The app must support preview before printing
 - The app must support printing/exporting the final result
 - The app must support QR-based session completion/download flow
+- The template tab must support selecting a template and a custom backdrop without breaking the flow
+- The custom color picker experience must remain embedded in the template flow when enabled
 
 ### Admin Flow
 
@@ -37,6 +39,7 @@ Last updated: 2026-08-12
 - Camera capture must use CameraX
 - Local file IO must be supported for capture and print assets
 - JSON layout/template data must be loadable from assets
+- Markdown documentation should describe the supported JSON formats and current flow
 - The app must compile and run with the configured Android SDK
 
 ## Environment Requirements
@@ -78,4 +81,4 @@ Last updated: 2026-08-12
 - Unit tests should cover helper logic where practical
 - Refactors should be verified with `:app:testDebugUnitTest`
 - Changes affecting IO or rendering should be checked for regressions
-
+- Flow UI changes should be checked on a device or emulator because the template and color picker experience is layout-sensitive

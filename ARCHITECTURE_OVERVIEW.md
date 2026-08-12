@@ -21,7 +21,7 @@ This is a pragmatic layered architecture rather than a strict Clean Architecture
 ```mermaid
 flowchart TD
     UI["Compose Screens"] --> VM["ViewModels"]
-    VM --> Domain["Domain Models / Use Cases"]
+    VM --> Domain["Domain Models / Helpers"]
     VM --> Services["Storage / Logging / Printing Services"]
     Domain --> Repo["Repository Layer"]
     Repo --> Data["Concrete Data Sources"]
@@ -50,26 +50,27 @@ flowchart TD
 
 ## Rendering Pipeline
 
-1. Screen receives state from the ViewModel
-2. Compose reads the current state and selects the active stage UI
-3. Stage composables render templates, previews, camera, or print status
-4. Image helpers decode photos and assets when needed
-5. Print helpers compose a bitmap/PDF representation for output
+1. Screen receives state from the ViewModel.
+2. Compose reads the current state and selects the active stage UI.
+3. Stage composables render camera, assignment, templates, preview, or print status.
+4. Image helpers decode photos and assets when needed.
+5. Print helpers compose the final bitmap or PDF representation for output.
 
 ## Photo Pipeline
 
-1. CameraX captures a photo to a local file
-2. Storage service assigns the file to the session
-3. Flow state records the captured frame path
-4. Preview composables load the bitmap for display
-5. Print composer prepares the same image for print export
+1. CameraX captures a photo to a local file.
+2. Storage service assigns the file to the session.
+3. Flow state records the captured frame path.
+4. Preview composables load the bitmap for display.
+5. Print composer prepares the same image for print export.
 
 ## Template and Layout Pipeline
 
-1. JSON layout files are loaded from assets
-2. The JSON is parsed into `StripLayout`
-3. Assignment and print previews render the layout background and overlay
-4. Captured frames are composited into the layout slots
+1. Template manifests and layout files are loaded from assets.
+2. Template JSON is parsed through the manifest schema docs in `docs/json-schemas/`.
+3. Layout JSON is parsed into the internal strip layout model.
+4. Assignment and preview screens render the selected background and overlay.
+5. Captured frames are composited into the layout slots.
 
 ## Strengths
 
@@ -90,4 +91,3 @@ flowchart TD
 - Keep capture, assignment, and shared widgets in their own files
 - Keep bitmap and asset loading centralized
 - Keep ViewModel helper logic out of the UI layer
-

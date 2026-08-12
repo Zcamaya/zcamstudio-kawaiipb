@@ -4,7 +4,7 @@ Last updated: 2026-08-12
 
 ## Purpose
 
-KawaiiPB is an Android kiosk application for a guided photo booth workflow. The app combines camera capture, photo assignment, drawing, sticker placement, preview, printing, and admin access in one Compose-based experience.
+KawaiiPB is an Android kiosk application for a guided photo booth workflow. The app combines camera capture, photo assignment, template selection, preview, printing, and admin access in one Compose-based experience.
 
 ## Top-Level Layout
 
@@ -24,6 +24,8 @@ app/
       res/
       assets/
     test/
+docs/
+  json-schemas/
 ```
 
 ## Main Subsystems
@@ -67,12 +69,12 @@ app/
 
 ## Runtime Flow
 
-1. The app starts in `MainActivity`
-2. `KawaiiPbApp` wires dependencies and theme
-3. `KawaiiNavHost` chooses the active screen
-4. Feature screens render state from their ViewModels
-5. User actions update state through callbacks or ViewModel methods
-6. Services and repositories provide storage, logging, and domain data
+1. The app starts in `MainActivity`.
+2. `KawaiiPbApp` wires dependencies and theme.
+3. `KawaiiNavHost` chooses the active screen.
+4. Feature screens render state from their ViewModels.
+5. User actions update state through callbacks or ViewModel methods.
+6. Services and repositories provide storage, logging, and domain data.
 
 ## Current File Ownership
 
@@ -81,9 +83,14 @@ app/
 - `FlowPresentationHelpers.kt`: shared flow presentation utilities
 - `FlowStageSections.kt`: stage-specific flow screens
 - `FlowCaptureSections.kt`: camera capture UI
-- `FlowAssignmentSections.kt`: photo assignment and layout preview UI
+- `FlowAssignmentSections.kt`: photo assignment, template selection, and custom color UI
 - `FlowSharedSections.kt`: reusable flow preview/editor widgets
 - `FlowViewModelSupport.kt`: shared flow ViewModel helper functions
+
+## JSON Format Docs
+
+- `docs/json-schemas/template.schema.md`
+- `docs/json-schemas/layout-manifest.md`
 
 ## Structural Goals
 
@@ -92,4 +99,3 @@ app/
 - Keep business rules in `domain`
 - Keep storage and logging behind small service boundaries
 - Avoid single files accumulating unrelated responsibilities
-

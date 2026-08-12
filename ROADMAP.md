@@ -69,6 +69,7 @@ Goal: improve spacing, hierarchy, and interaction clarity.
   - Tighter layout consistency
   - Better loading states
   - Improved feedback for capture and assignment
+  - Cleaner template tab spacing and embedded custom color controls
 
 ## Phase 6. Feature Improvements
 
@@ -82,6 +83,7 @@ Goal: expand functionality where it adds user value.
   - Better template selection
   - Smarter photo assignment
   - Richer preview controls
+  - Improved template and color-selection ergonomics
 
 ## Phase 7. Future Scalability
 
@@ -101,3 +103,4 @@ Goal: prepare the app for growth, reuse, and maintainability.
 - All phases should preserve current behavior unless explicitly approved.
 - Large refactors should be split into small, testable steps.
 - Every change should be followed by build and unit-test verification.
+- Flow UI changes should also be verified visually in the template tab because spacing and overlays are easy to regress there.

@@ -27,6 +27,7 @@ Last updated: 2026-08-12
 - The app builds successfully
 - Unit tests pass
 - The flow presentation layer is now more modular
+- Markdown docs now include current flow and JSON format references
 
 ## Next Recommended Work
 

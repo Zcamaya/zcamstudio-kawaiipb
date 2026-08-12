@@ -1,5 +1,7 @@
 # KawaiiPB System Structure
 
+Last updated: 2026-08-12
+
 ## Purpose
 
 KawaiiPB is an Android kiosk application for a guided photo booth workflow. The app combines camera capture, photo assignment, drawing, sticker placement, preview, printing, and admin access in one Compose-based experience.

@@ -1,7 +1,7 @@
 {
   "version": 1,
   "layoutId": "pb_split_vert_2p_grid",
-  "layoutName": "Pb Split Vert 2P Grid",
+  "layoutName": "2x2 Strip",
   "layoutType": "pb_split_vert_2p_grid",
   "paper": {
     "width": 1200,

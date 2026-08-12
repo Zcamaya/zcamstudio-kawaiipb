@@ -1,7 +1,7 @@
 {
   "version": 1,
   "layoutId": "strip_2x4",
-  "layoutName": "2x4 Photo Strip",
+  "layoutName": "2x4 Strip",
   "layoutType": "2x4",
   "paper": {
     "width": 1200,

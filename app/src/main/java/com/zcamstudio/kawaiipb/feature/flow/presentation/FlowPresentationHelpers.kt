@@ -16,9 +16,11 @@ import com.zcamstudio.kawaiipb.domain.model.StripSize
 import com.zcamstudio.kawaiipb.domain.model.TemplatePhotoSlot
 import org.json.JSONArray
 import org.json.JSONObject
+import java.io.File
 
 private const val AssetImageCacheSize = 16
 private const val CapturePhotoCacheSize = 24
+private const val LayoutsAssetRoot = "layouts"
 
 private val assetImageCache = object : LruCache<String, ImageBitmap>(AssetImageCacheSize) {
     override fun sizeOf(key: String, value: ImageBitmap): Int = 1
@@ -58,6 +60,46 @@ fun stripSizeLayoutAssetPath(size: StripSize): String = when (size) {
     StripSize.ThreeByOneRight -> "layouts/pb_card_uncut_3p_right.json"
     StripSize.TwoByTwoGrid -> "layouts/pb_split_horiz_2p_grid.json"
     StripSize.FourByBanner -> "layouts/pb_card_uncut_4p_banner.json"
+}
+
+data class StripLayoutOption(
+    val displayName: String,
+    val layoutAssetPath: String,
+    val previewAssetPath: String,
+    val frameCount: Int
+)
+
+fun listStripLayoutOptions(context: Context): List<StripLayoutOption> {
+    val discoveredLayouts = mutableListOf<StripLayoutOption>()
+    collectStripLayoutJsonAssets(context, LayoutsAssetRoot, discoveredLayouts)
+
+    val dynamicLayouts = discoveredLayouts
+        .distinctBy { it.layoutAssetPath.lowercase() }
+        .sortedBy { it.displayName.lowercase() }
+
+    return if (dynamicLayouts.isNotEmpty()) dynamicLayouts else legacyStripLayoutOptions()
+}
+
+fun legacyStripLayoutOptions(): List<StripLayoutOption> = StripSize.values().map { size ->
+    StripLayoutOption(
+        displayName = size.label,
+        layoutAssetPath = stripSizeLayoutAssetPath(size),
+        previewAssetPath = stripSizePreviewAssetPath(size),
+        frameCount = size.frameCount
+    )
+}
+
+fun defaultStripLayoutAssetPathForSize(size: StripSize): String = stripSizeLayoutAssetPath(size)
+
+fun selectMatchingStripSize(frameCount: Int, fallback: StripSize = StripSize.TwoByFour): StripSize {
+    return StripSize.values().firstOrNull { it.frameCount == frameCount }
+        ?: StripSize.values().minByOrNull { kotlin.math.abs(it.frameCount - frameCount) }
+        ?: fallback
+}
+
+fun stripLayoutAssetPathFromState(state: FlowUiState): String {
+    return state.selectedStripLayoutAssetPath
+        ?: stripSizeLayoutAssetPath(state.stripSize)
 }
 
 fun flowStageTitle(stage: KioskFlowStage): String = when (stage) {
@@ -155,6 +197,7 @@ fun loadStripLayoutFromAssets(context: Context, assetPath: String): StripLayout?
 
 fun parseStripLayout(json: JSONObject): StripLayout {
     val stripType = json.optString("layoutId", json.optString("layoutType", "2x4"))
+    val layoutName = json.optString("layoutName", "").takeIf { it.isNotBlank() }
     val paper = json.optJSONObject("paper")
     val canvasWidth = paper?.optInt("width", 1200) ?: 1200
     val canvasHeight = paper?.optInt("height", 1800) ?: 1800
@@ -181,6 +224,7 @@ fun parseStripLayout(json: JSONObject): StripLayout {
     }
     return StripLayout(
         stripType = stripType,
+        layoutName = layoutName,
         canvasWidth = canvasWidth,
         canvasHeight = canvasHeight,
         photoSlots = slots,
@@ -206,6 +250,110 @@ fun parseStripLayout(json: JSONObject): StripLayout {
 fun resolveLayoutAssetPath(layout: StripLayout?, fallbackAssetPath: String = "layouts/pb_split_vert_4p_grid.png"): String? {
     return layout?.backgroundImage?.takeIf { it.isNotBlank() }
         ?: fallbackAssetPath.takeIf { it.isNotBlank() }
+}
+
+fun resolveLayoutPreviewAssetPath(context: Context, layoutAssetPath: String, layout: StripLayout): String? {
+    val folder = layoutAssetPath.substringBeforeLast('/', "")
+    val candidates = buildList {
+        layout.backgroundImage?.takeIf { it.isNotBlank() }?.let { add(it) }
+        layout.backgroundImage?.takeIf { it.isNotBlank() }?.let { background ->
+            if (folder.isNotBlank() && !background.contains('/')) {
+                add("$folder/$background")
+            }
+        }
+        val stem = File(layoutAssetPath).nameWithoutExtension
+        if (folder.isNotBlank()) {
+            add("$folder/$stem.png")
+        } else {
+            add("$stem.png")
+        }
+    }
+    return candidates.firstOrNull { assetExists(context, it) }
+}
+
+private fun collectStripLayoutJsonAssets(
+    context: Context,
+    assetPath: String,
+    destination: MutableList<StripLayoutOption>
+) {
+    val children = try {
+        context.assets.list(assetPath)?.toList().orEmpty()
+    } catch (_: Exception) {
+        emptyList()
+    }
+
+    if (children.isEmpty()) return
+    if (assetPath.contains("/base layouts", ignoreCase = true) || assetPath.contains("/OLD", ignoreCase = true)) return
+
+    children.forEach { child ->
+        val childPath = if (assetPath.isBlank()) child else "$assetPath/$child"
+        if (child.endsWith(".json", ignoreCase = true)) {
+            val layout = loadStripLayoutFromAssets(context, childPath) ?: return@forEach
+            val previewAssetPath = resolveLayoutPreviewAssetPath(context, childPath, layout)
+                ?: childPath.substringBeforeLast('.') + ".png"
+            val displayName = formatStripLayoutDisplayName(layout)
+            destination.add(
+                StripLayoutOption(
+                    displayName = displayName,
+                    layoutAssetPath = childPath,
+                    previewAssetPath = previewAssetPath,
+                    frameCount = layout.photoSlots.size
+                )
+            )
+        } else {
+            collectStripLayoutJsonAssets(context, childPath, destination)
+        }
+    }
+}
+
+private fun assetExists(context: Context, assetPath: String): Boolean {
+    return try {
+        context.assets.open(assetPath).close()
+        true
+    } catch (_: Exception) {
+        false
+    }
+}
+
+private fun formatLayoutLabelFromAssetName(assetName: String): String {
+    val normalized = assetName
+        .replace('_', ' ')
+        .replace(Regex("\\s+"), " ")
+        .trim()
+
+    if (normalized.isBlank()) return assetName
+
+    return when (normalized.lowercase()) {
+        "pb split vert 2p grid" -> "2x6 Vertical Strip (2 Photos)"
+        "pb split vert 3p grid" -> "2x6 Vertical Strip (3 Photos)"
+        "pb split vert 4p grid" -> "2x6 Vertical Strip (4 Photos)"
+        "pb split horiz 2p grid" -> "2x6 Horizontal Strip (2 Photos)"
+        "pb card uncut 2p stack" -> "4x6 Card (2 Photos - Dual Stack)"
+        "pb card uncut 3p left" -> "4x6 Card (3 Photos - Left Focus)"
+        "pb card uncut 3p right" -> "4x6 Card (3 Photos - Right Focus)"
+        "pb card uncut 4p banner" -> "4x6 Card (4 Photos - Hero Banner)"
+        else -> normalized.split(' ').joinToString(" ") { part ->
+            part.lowercase().replaceFirstChar { ch -> ch.titlecase() }
+        }
+    }
+}
+
+private fun formatStripLayoutDisplayName(layout: StripLayout): String {
+    layout.layoutName
+        ?.takeIf { it.isNotBlank() }
+        ?.let { return it }
+
+    return when (layout.stripType.lowercase()) {
+        "pb_split_vert_4p_grid" -> "2 x 6 Vertical Strip (4 Photos)"
+        "pb_split_vert_3p_grid" -> "2 x 6 Vertical Strip (3 Photos)"
+        "pb_split_vert_2p_grid" -> "2 x 6 Vertical Strip (2 Photos)"
+        "pb_split_horiz_2p_grid" -> "2 x 6 Horizontal Strip (2 Photos)"
+        "pb_card_uncut_2p_stack" -> "4 x 6 Card (2 Photos - Dual Stack)"
+        "pb_card_uncut_3p_left" -> "4 x 6 Card (3 Photos - Left Focus)"
+        "pb_card_uncut_3p_right" -> "4 x 6 Card (3 Photos - Right Focus)"
+        "pb_card_uncut_4p_banner" -> "4 x 6 Card (4 Photos - Hero Banner)"
+        else -> formatLayoutLabelFromAssetName(layout.stripType)
+    }
 }
 
 

@@ -1,0 +1,9 @@
+{
+  "version": 1,
+  "name": "Base",
+  "background": "background.png",
+  "overlays": {
+    "2x4": "overlay_2x4.png",
+    "2x6-horizontal": "overlay_2x4.png"
+  }
+}

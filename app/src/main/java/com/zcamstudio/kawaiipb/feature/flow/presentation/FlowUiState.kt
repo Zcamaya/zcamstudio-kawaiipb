@@ -37,6 +37,8 @@ data class FlowUiState(
     val cameraMode: CameraMode = CameraMode.Classic,
     val defaultCameraLens: CameraLens = CameraLens.Front,
     val stripSize: StripSize = StripSize.TwoByFour,
+    val stripLayoutOptions: List<StripLayoutOption> = emptyList(),
+    val selectedStripLayoutAssetPath: String? = null,
     val classicCameraSelectionId: String = "front",
     val elevatorCameraSelectionId: String = "rear",
     // selectedTemplate removed

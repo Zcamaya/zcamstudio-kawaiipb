@@ -209,8 +209,19 @@ internal fun buildAutoFillPhotoAssignmentState(state: FlowUiState): FlowUiState 
 internal fun buildStripSizeSelectedState(state: FlowUiState, stripSize: StripSize): FlowUiState {
     return state.copy(
         stripSize = stripSize,
+        selectedStripLayoutAssetPath = stripSizeLayoutAssetPath(stripSize),
         stripLayout = null,
         summaryMessage = "Strip layout selected: ${stripSize.label}"
+    )
+}
+
+internal fun buildStripLayoutOptionSelectedState(state: FlowUiState, option: StripLayoutOption): FlowUiState {
+    val matchedSize = selectMatchingStripSize(option.frameCount, state.stripSize)
+    return state.copy(
+        stripSize = matchedSize,
+        selectedStripLayoutAssetPath = option.layoutAssetPath,
+        stripLayout = null,
+        summaryMessage = "Strip layout selected: ${option.displayName}"
     )
 }
 

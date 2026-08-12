@@ -113,7 +113,7 @@ fun KawaiiNavHost(
                 onContinueFromCaptureComplete = viewModel::continueFromCaptureComplete,
                 onContinueFromPhotoAssignment = viewModel::continueFromPhotoAssignment,
                 onToggleAutoCapture = viewModel::toggleAutoCapture,
-                onSelectStripSize = viewModel::selectStripSize,
+                onSelectStripLayoutOption = viewModel::selectStripLayoutOption,
                 onContinueStripSize = viewModel::continueStripSize,
                 onLoadStripLayout = viewModel::setStripLayout,
                 onSelectTemplateOverlay = viewModel::setSelectedTemplatePath,

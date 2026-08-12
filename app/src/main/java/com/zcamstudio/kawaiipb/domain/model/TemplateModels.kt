@@ -17,6 +17,7 @@ data class TemplatePhotoSlot(
 // Represents a generated base layout (strip layout) for a session
 data class StripLayout(
     val stripType: String,
+    val layoutName: String? = null,
     val canvasWidth: Int,
     val canvasHeight: Int,
     val photoSlots: List<TemplatePhotoSlot>,

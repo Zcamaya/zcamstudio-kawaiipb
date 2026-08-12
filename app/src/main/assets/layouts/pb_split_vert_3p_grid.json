@@ -1,7 +1,7 @@
 {
   "version": 1,
   "layoutId": "pb_split_vert_3p_grid",
-  "layoutName": "Pb Split Vert 3P Grid",
+  "layoutName": "2x3 Strip",
   "layoutType": "pb_split_vert_3p_grid",
   "paper": {
     "width": 1200,

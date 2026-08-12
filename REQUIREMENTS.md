@@ -1,5 +1,7 @@
 # KawaiiPB Requirements
 
+Last updated: 2026-08-12
+
 ## Functional Requirements
 
 ### App Flow

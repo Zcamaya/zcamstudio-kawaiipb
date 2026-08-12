@@ -61,7 +61,7 @@ internal fun StageBody(
     onContinueFromCaptureComplete: () -> Unit,
     onContinueFromPhotoAssignment: () -> Unit,
     onToggleAutoCapture: () -> Unit,
-    onSelectStripSize: (StripSize) -> Unit,
+    onSelectStripLayoutOption: (StripLayoutOption) -> Unit,
     onContinueStripSize: () -> Unit,
     onLoadStripLayout: (StripLayout?) -> Unit,
     onSelectTemplateOverlay: (String?) -> Unit,
@@ -119,7 +119,7 @@ internal fun StageBody(
                         onResetAssignment = onResetAssignment,
                         onAutoFillAssignment = onAutoFillAssignment
                     )
-                    KioskFlowStage.StripSize -> FlowStripSizeStage(uiState, onSelectStripSize, onContinueStripSize)
+                    KioskFlowStage.StripSize -> FlowStripSizeStage(uiState, onSelectStripLayoutOption, onContinueStripSize)
                     KioskFlowStage.Preview -> FlowPreviewStage(uiState, onBeginPrinting, onReturnToLanding)
                     KioskFlowStage.Printing -> FlowPrintingStage(uiState, onReturnToLanding)
                     KioskFlowStage.Qr -> FlowQrStage(uiState, onReturnToLanding)

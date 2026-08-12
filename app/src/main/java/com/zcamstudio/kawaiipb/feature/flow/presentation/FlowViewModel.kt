@@ -47,6 +47,7 @@ class FlowViewModel(
             val catalog = getKioskSessionCatalogUseCase()
             val savedSettings = storageService.loadFlowTimerSettings()
             val savedCameraSelections = storageService.loadCameraModeSelections()
+            val discoveredStripLayouts = listStripLayoutOptions(storageService.appContext())
             _uiState.update { state ->
                 state.copy(
                     isLoading = false,
@@ -54,6 +55,9 @@ class FlowViewModel(
                     cameraMode = catalog.cameraModes.firstOrNull() ?: CameraMode.Classic,
                     defaultCameraLens = defaultLensForCameraMode(catalog.cameraModes.firstOrNull() ?: CameraMode.Classic),
                     stripSize = catalog.stripSizes.firstOrNull() ?: StripSize.TwoByFour,
+                    stripLayoutOptions = discoveredStripLayouts,
+                    selectedStripLayoutAssetPath = discoveredStripLayouts.firstOrNull()?.layoutAssetPath
+                        ?: stripSizeLayoutAssetPath(catalog.stripSizes.firstOrNull() ?: StripSize.TwoByFour),
                     sessionId = sessionId,
                     stage = KioskFlowStage.CameraMode,
                     flowTimerSettings = savedSettings,
@@ -190,10 +194,12 @@ class FlowViewModel(
         _uiState.update { state -> buildStripSizeSelectedState(state, stripSize) }
     }
 
+    fun selectStripLayoutOption(option: StripLayoutOption) {
+        _uiState.update { state -> buildStripLayoutOptionSelectedState(state, option) }
+    }
+
     fun continueStripSize() {
-        _uiState.update { current ->
-            current.copy(stripLayout = null)
-        }
+        _uiState.update { current -> current.copy(stripLayout = null) }
         setStage(KioskFlowStage.PhotoAssignment, "Assign captured photos to the strip")
     }
 

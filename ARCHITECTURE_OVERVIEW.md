@@ -1,5 +1,7 @@
 # KawaiiPB Architecture Overview
 
+Last updated: 2026-08-12
+
 ## Summary
 
 KawaiiPB uses a feature-first, Compose-driven architecture with a thin UI coordinator, ViewModel state management, domain models, and small service/repository boundaries.

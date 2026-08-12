@@ -1,5 +1,7 @@
 # KawaiiPB Project Structure and Architecture
 
+Last updated: 2026-08-12
+
 ## Overview
 
 KawaiiPB is an Android application built with Kotlin and Jetpack Compose. The project uses a feature-oriented, layered structure that keeps the UI, state, domain logic, and data access reasonably separated.

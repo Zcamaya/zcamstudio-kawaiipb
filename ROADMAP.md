@@ -1,5 +1,7 @@
 # KawaiiPB Roadmap
 
+Last updated: 2026-08-12
+
 This document captures the prioritized improvement plan for the app.
 
 ## Phase 1. Critical Bugs

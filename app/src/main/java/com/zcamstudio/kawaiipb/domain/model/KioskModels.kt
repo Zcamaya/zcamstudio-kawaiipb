@@ -27,7 +27,7 @@ enum class StripSize(val label: String, val frameCount: Int) {
     TwoByOneStack("2 x 1 Stack", 2),
     ThreeByOneLeft("3 x 1 Left", 3),
     ThreeByOneRight("3 x 1 Right", 3),
-    TwoByTwoGrid("2 x 2 Grid", 4),
+    TwoByTwoGrid("2 x 6 Horizontal Strip", 4),
     FourByBanner("4 x 1 Banner", 4)
 }
 

@@ -1,5 +1,7 @@
 # KawaiiPB
 
+Last updated: 2026-08-12
+
 [![Android CI](https://github.com/Zcamaya/zcamstudio-kawaii-pb/actions/workflows/android.yml/badge.svg)](https://github.com/Zcamaya/zcamstudio-kawaii-pb/actions/workflows/android.yml)
 
 KawaiiPB is an Android kiosk-style app built with Kotlin and Jetpack Compose. It includes a landing screen, camera/photo workflow, drawing/sticker assignment, and an admin dashboard.
@@ -75,3 +77,7 @@ Run unit tests for the app module:
 ## Contact
 
 This repository does not include a license file. Update the README with project-specific maintainers or license details if needed.
+
+## License
+
+No license file is included in this repository. Add a `LICENSE` file to declare project licensing and maintainers.

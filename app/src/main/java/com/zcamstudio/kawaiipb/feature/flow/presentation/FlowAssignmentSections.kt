@@ -44,6 +44,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -71,6 +72,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.zIndex
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
@@ -131,8 +133,16 @@ internal fun FlowPhotoAssignmentStage(
     val maxWorkspaceHeight = (configuration.screenHeightDp.dp - 120.dp).coerceAtLeast(360.dp)
     var selectedSection by remember { mutableStateOf(0) }
     var showColorPicker by remember { mutableStateOf(false) }
-    var colorPickerSeedColor by remember { mutableStateOf(selectedTemplateColor ?: 0xFFFFFFFFL) }
+    var customColorPreviewArgb by remember { mutableStateOf(selectedTemplateColor ?: 0xFFFFFFFFL) }
+    var colorPickerSeedColor by remember { mutableStateOf(customColorPreviewArgb) }
     val sectionLabels = listOf("Captured Photos", "Template", "Stickers")
+
+    LaunchedEffect(selectedTemplateColor) {
+        if (selectedTemplateColor != null) {
+            customColorPreviewArgb = selectedTemplateColor
+            colorPickerSeedColor = selectedTemplateColor
+        }
+    }
 
     LaunchedEffect(assignmentLayout) {
         onLoadStripLayout(assignmentLayout)
@@ -270,41 +280,50 @@ internal fun FlowPhotoAssignmentStage(
                                                     initialColorArgb = colorPickerSeedColor,
                                                     onClose = {
                                                         showColorPicker = false
-                                                        colorPickerSeedColor = selectedTemplateColor ?: 0xFFFFFFFFL
+                                                        colorPickerSeedColor = customColorPreviewArgb
                                                     },
                                                     onColorSelected = { colorArgb ->
+                                                        customColorPreviewArgb = colorArgb
+                                                        colorPickerSeedColor = colorArgb
                                                         onSelectTemplateOverlay(templateColorSelectionKey(colorArgb))
                                                     }
                                                 )
                                             } else {
-                                                Row(
+                                                val customColorSelected = isTemplateColorSelection(uiState.selectedTemplateFolderPath)
+                                                val customColorValue = customColorPreviewArgb
+                                                Surface(
+                                                    shape = RoundedCornerShape(18.dp),
+                                                    color = if (customColorSelected) WarmCream.copy(alpha = 0.82f) else Color.White,
+                                                    border = BorderStroke(1.dp, if (customColorSelected) CherryPink else Color(0xFFE8DDE8)),
                                                     modifier = Modifier
                                                         .fillMaxWidth()
-                                                        .background(WarmCream.copy(alpha = 0.55f))
-                                                        .clip(RoundedCornerShape(18.dp))
-                                                        .border(1.dp, Color(0xFFE8DDE8), RoundedCornerShape(18.dp))
-                                                        .padding(horizontal = 12.dp, vertical = 10.dp),
-                                                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                                                    verticalAlignment = Alignment.CenterVertically
+                                                        .clickable {
+                                                            val nextPath = if (customColorSelected) null else templateColorSelectionKey(customColorValue)
+                                                            onSelectTemplateOverlay(nextPath)
+                                                        }
                                                 ) {
-                                                    Box(
-                                                        modifier = Modifier
-                                                            .size(30.dp)
-                                                            .clip(CircleShape)
-                                                            .background(Color(selectedTemplateColor ?: 0xFFFFFFFFL))
-                                                            .border(1.dp, Color(0xFFE0D6E6), CircleShape)
-                                                    )
-                                                    Column(modifier = Modifier.weight(1f)) {
-                                                        Text(text = "Custom color", color = InkRose, style = MaterialTheme.typography.bodyLarge)
-                                                        Text(
-                                                            text = "Use the current color or open the picker.",
-                                                            color = SoftText,
-                                                            style = MaterialTheme.typography.bodySmall
+                                                    Row(
+                                                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                                                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                                        verticalAlignment = Alignment.CenterVertically
+                                                    ) {
+                                                        Box(
+                                                            modifier = Modifier
+                                                                .size(26.dp)
+                                                                .clip(CircleShape)
+                                                                .background(Color(customColorValue))
+                                                                .border(1.dp, Color(0xFFE0D6E6), CircleShape)
                                                         )
-                                                    }
-                                                    KawaiiSecondaryButton(text = "Open Picker", modifier = Modifier.width(110.dp)) {
-                                                        colorPickerSeedColor = selectedTemplateColor ?: 0xFFFFFFFFL
-                                                        showColorPicker = true
+                                                        Text(
+                                                            text = "Custom color",
+                                                            color = InkRose,
+                                                            style = MaterialTheme.typography.bodyLarge,
+                                                            modifier = Modifier.weight(1f)
+                                                        )
+                                                        KawaiiSecondaryButton(text = "Picker") {
+                                                            colorPickerSeedColor = customColorValue
+                                                            showColorPicker = true
+                                                        }
                                                     }
                                                 }
                                             }
@@ -719,21 +738,35 @@ internal fun FlowAssignmentLayoutPreview(
                 )
             }
 
-            placedStickers.forEach { sticker ->
-                StickerOverlayItem(
-                    sticker = sticker,
-                    selected = sticker.id == selectedStickerId,
-                    previewWidth = targetWidth,
-                    previewHeight = targetHeight,
-                    onSelect = {
-                        onSelectSticker(if (sticker.id == selectedStickerId) null else sticker.id)
-                    },
-                    onMove = { centerX, centerY -> onUpdateStickerPosition(sticker.id, centerX, centerY) },
-                    onScale = { scale -> onUpdateStickerScale(sticker.id, scale) },
-                    onRotate = { rotation -> onUpdateStickerRotation(sticker.id, rotation) },
-                    onFlip = { onFlipSticker(sticker.id) },
-                    onRemove = { onRemoveSticker(sticker.id) }
-                )
+            val orderedStickers = remember(placedStickers, selectedStickerId) {
+                placedStickers.sortedWith { a, b ->
+                    val aSelected = a.id == selectedStickerId
+                    val bSelected = b.id == selectedStickerId
+                    when {
+                        aSelected && !bSelected -> 1
+                        !aSelected && bSelected -> -1
+                        else -> a.id.compareTo(b.id)
+                    }
+                }
+            }
+
+            orderedStickers.forEach { sticker ->
+                key(sticker.id) {
+                    StickerOverlayItem(
+                        sticker = sticker,
+                        selected = sticker.id == selectedStickerId,
+                        previewWidth = targetWidth,
+                        previewHeight = targetHeight,
+                        onSelect = {
+                            onSelectSticker(if (sticker.id == selectedStickerId) null else sticker.id)
+                        },
+                        onMove = { centerX, centerY -> onUpdateStickerPosition(sticker.id, centerX, centerY) },
+                        onScale = { scale -> onUpdateStickerScale(sticker.id, scale) },
+                        onRotate = { rotation -> onUpdateStickerRotation(sticker.id, rotation) },
+                        onFlip = { onFlipSticker(sticker.id) },
+                        onRemove = { onRemoveSticker(sticker.id) }
+                    )
+                }
             }
         }
     }
@@ -874,7 +907,7 @@ private fun StickerOverlayItem(
 ) {
     val context = LocalContext.current
     val density = LocalDensity.current
-    val imageBitmap = remember(sticker.assetPath) { loadAssetImage(context, sticker.assetPath) }
+    val imageBitmap = remember(sticker.id, sticker.assetPath) { loadAssetImage(context, sticker.assetPath) }
     var committedRotation by remember(sticker.id) { mutableFloatStateOf(sticker.rotation) }
     var committedScale by remember(sticker.id) { mutableFloatStateOf(sticker.scale) }
     var rotateDragStartRotation by remember(sticker.id) { mutableStateOf(sticker.rotation) }
@@ -904,6 +937,7 @@ private fun StickerOverlayItem(
             .absoluteOffset(x = with(density) { topLeftX.toDp() }, y = with(density) { topLeftY.toDp() })
             .width(boxWidth)
             .height(boxHeight)
+            .zIndex(if (selected) 1f else 0f)
     ) {
         Box(
             modifier = Modifier
@@ -1236,10 +1270,6 @@ private fun TemplateColorPickerInline(
         current.toLong() and 0xFFFFFFFFL
     }
 
-    LaunchedEffect(selectedColorArgb) {
-        onColorSelected(selectedColorArgb)
-    }
-
     Surface(
         shape = RoundedCornerShape(18.dp),
         color = Color(selectedColorArgb).copy(alpha = 0.14f),
@@ -1300,17 +1330,11 @@ private fun TemplateColorPickerInline(
                             modifier = Modifier.weight(1f)
                         )
 
-                        Column(
-                            verticalArrangement = Arrangement.spacedBy(6.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally
-                        ) {
-                            Text(text = "Hue", style = MaterialTheme.typography.labelSmall, color = SoftText)
-                            VerticalHuePicker(
-                                hue = hue,
-                                onHueChange = { hue = it },
-                                modifier = Modifier.height(170.dp)
-                            )
-                        }
+                        VerticalHuePicker(
+                            hue = hue,
+                            onHueChange = { hue = it },
+                            modifier = Modifier.height(170.dp)
+                        )
                     }
 
                     Surface(
@@ -1363,6 +1387,7 @@ private fun TemplateColorPickerInline(
                             text = "Done",
                             modifier = Modifier.weight(1f)
                         ) {
+                            onColorSelected(selectedColorArgb)
                             onClose()
                         }
                     }
@@ -1394,67 +1419,50 @@ private fun ColorSquarePicker(
         )
 
         fun updateColor(position: Offset) {
-            val sat = (position.x / squareSizePx).coerceIn(0f, 1f)
-            val valuePct = (1f - (position.y / squareSizePx)).coerceIn(0f, 1f)
+            val clampedX = position.x.coerceIn(0f, squareSizePx)
+            val clampedY = position.y.coerceIn(0f, squareSizePx)
+            val sat = (clampedX / squareSizePx).coerceIn(0f, 1f)
+            val valuePct = (1f - (clampedY / squareSizePx)).coerceIn(0f, 1f)
             onColorChange(hue, sat, valuePct)
         }
 
-        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            androidx.compose.foundation.Canvas(
-                modifier = Modifier
-                    .size(squareSize)
-                    .pointerInput(Unit) {
-                        detectDragGestures(
-                            onDragStart = { offset -> updateColor(offset) },
-                            onDrag = { change, _ ->
-                                updateColor(change.position)
-                            }
-                        )
-                    }
-                    .pointerInput(Unit) {
-                        detectTapGestures(
-                            onTap = { offset ->
-                                updateColor(offset)
-                            }
-                        )
-                    }
-            ) {
-                val hueColor = Color.hsv(hue, 1f, 1f)
-                drawRoundRect(
-                    brush = Brush.linearGradient(
-                        colors = listOf(Color.White, hueColor),
-                        start = Offset.Zero,
-                        end = Offset(size.width, 0f)
-                    ),
-                    cornerRadius = androidx.compose.ui.geometry.CornerRadius(16f, 16f)
-                )
-                drawRoundRect(
-                    brush = Brush.verticalGradient(
-                        colors = listOf(Color.Transparent, Color.Black),
-                        startY = 0f,
-                        endY = size.height
-                    ),
-                    cornerRadius = androidx.compose.ui.geometry.CornerRadius(16f, 16f)
-                )
-                drawCircle(
-                    color = backgroundTint,
-                    radius = size.minDimension * 0.10f
-                )
-                drawCircle(
-                    color = Color.White,
-                    radius = 9.dp.toPx(),
-                    center = indicator,
-                    style = Stroke(width = indicatorStrokeWidth)
-                )
-            }
-
-            Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text(
-                    text = "Drag inside the square, then use Hue and Shade to refine it.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = SoftText
-                )
-            }
+        androidx.compose.foundation.Canvas(
+            modifier = Modifier
+                .size(squareSize)
+                .pointerInput(squareSizePx) {
+                    detectDragGestures(
+                        onDragStart = { offset -> updateColor(offset) },
+                        onDrag = { change, _ -> updateColor(change.position) }
+                    )
+                }
+        ) {
+            val hueColor = Color.hsv(hue, 1f, 1f)
+            drawRoundRect(
+                brush = Brush.linearGradient(
+                    colors = listOf(Color.White, hueColor),
+                    start = Offset.Zero,
+                    end = Offset(size.width, 0f)
+                ),
+                cornerRadius = androidx.compose.ui.geometry.CornerRadius(16f, 16f)
+            )
+            drawRoundRect(
+                brush = Brush.verticalGradient(
+                    colors = listOf(Color.Transparent, Color.Black),
+                    startY = 0f,
+                    endY = size.height
+                ),
+                cornerRadius = androidx.compose.ui.geometry.CornerRadius(16f, 16f)
+            )
+            drawCircle(
+                color = backgroundTint,
+                radius = size.minDimension * 0.10f
+            )
+            drawCircle(
+                color = Color.White,
+                radius = 9.dp.toPx(),
+                center = indicator,
+                style = Stroke(width = indicatorStrokeWidth)
+            )
         }
     }
 }
@@ -1475,17 +1483,15 @@ private fun VerticalHuePicker(
         val indicatorY = heightPx * (hue.coerceIn(0f, 360f) / 360f)
 
         fun updateHue(positionY: Float) {
-            onHueChange(((positionY / heightPx).coerceIn(0f, 1f)) * 360f)
+            val clampedY = positionY.coerceIn(0f, heightPx)
+            onHueChange(((clampedY / heightPx).coerceIn(0f, 1f)) * 360f)
         }
 
         androidx.compose.foundation.Canvas(
             modifier = Modifier
                 .fillMaxSize()
                 .clip(RoundedCornerShape(999.dp))
-                .pointerInput(Unit) {
-                    detectTapGestures(onTap = { updateHue(it.y) })
-                }
-                .pointerInput(Unit) {
+                .pointerInput(heightPx) {
                     detectDragGestures(
                         onDragStart = { offset -> updateHue(offset.y) },
                         onDrag = { change, _ -> updateHue(change.position.y) }

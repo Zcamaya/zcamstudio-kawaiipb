@@ -230,18 +230,7 @@ class FlowViewModel(
 
     fun selectSticker(stickerId: Int?) {
         _uiState.update { state ->
-            if (stickerId == null) {
-                state.copy(selectedStickerId = null)
-            } else {
-                val reordered = state.placedStickers
-                    .filterNot { it.id == stickerId }
-                    .plus(state.placedStickers.firstOrNull { it.id == stickerId } ?: return@update state.copy(selectedStickerId = stickerId))
-
-                state.copy(
-                    placedStickers = reordered,
-                    selectedStickerId = stickerId
-                )
-            }
+            state.copy(selectedStickerId = stickerId)
         }
     }
 

@@ -51,6 +51,32 @@ fun stripSizePreviewAssetPath(size: StripSize): String = when (size) {
     StripSize.FourByBanner -> "layouts/pb_card_uncut_4p_banner.png"
 }
 
+private const val StickerBaseHeightRatio = 0.125f
+
+fun stickerBaseHeightPx(containerHeightPx: Float, scale: Float = 1f): Float {
+    val boundedScale = scale.coerceIn(0.45f, 2.4f)
+    return (containerHeightPx * StickerBaseHeightRatio * boundedScale).coerceAtLeast(24f)
+}
+
+fun stickerRenderRectPx(
+    centerX: Float,
+    centerY: Float,
+    containerWidthPx: Float,
+    containerHeightPx: Float,
+    aspectRatio: Float,
+    scale: Float = 1f
+): android.graphics.RectF {
+    val boundedContainerWidth = containerWidthPx.coerceAtLeast(1f)
+    val boundedContainerHeight = containerHeightPx.coerceAtLeast(1f)
+    val boxHeightPx = stickerBaseHeightPx(boundedContainerHeight, scale)
+    val boxWidthPx = (boxHeightPx * aspectRatio).coerceAtLeast(56f)
+    val boundedCenterX = centerX.coerceIn(0f, 1f) * boundedContainerWidth
+    val boundedCenterY = centerY.coerceIn(0f, 1f) * boundedContainerHeight
+    val left = (boundedCenterX - boxWidthPx / 2f).coerceIn(0f, (boundedContainerWidth - boxWidthPx).coerceAtLeast(0f))
+    val top = (boundedCenterY - boxHeightPx / 2f).coerceIn(0f, (boundedContainerHeight - boxHeightPx).coerceAtLeast(0f))
+    return android.graphics.RectF(left, top, left + boxWidthPx, top + boxHeightPx)
+}
+
 fun stripSizeLayoutAssetPath(size: StripSize): String = when (size) {
     StripSize.TwoByFour -> "layouts/pb_split_vert_4p_grid.json"
     StripSize.TwoByThree -> "layouts/pb_split_vert_3p_grid.json"

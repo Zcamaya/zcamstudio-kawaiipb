@@ -11,7 +11,7 @@ class FlowPresentationHelpersTest {
     fun stageDurationUsesExpectedDurations() {
         assertEquals(20, stageDuration(KioskFlowStage.CameraMode))
         assertEquals(90, stageDuration(KioskFlowStage.Capture))
-        assertEquals(300, stageDuration(KioskFlowStage.Qr))
+        assertEquals(30, stageDuration(KioskFlowStage.Qr))
     }
 
     @Test
@@ -53,5 +53,12 @@ class FlowPresentationHelpersTest {
         assertEquals("layouts/pb_card_uncut_3p_right.png", stripSizePreviewAssetPath(StripSize.ThreeByOneRight))
         assertEquals("layouts/pb_split_horiz_2p_grid.png", stripSizePreviewAssetPath(StripSize.TwoByTwoGrid))
         assertEquals("layouts/pb_card_uncut_4p_banner.png", stripSizePreviewAssetPath(StripSize.FourByBanner))
+    }
+
+    @Test
+    fun stickerBaseHeightTracksContainerHeight() {
+        assertEquals(125f, stickerBaseHeightPx(1000f), 0.01f)
+        assertEquals(187.5f, stickerBaseHeightPx(1000f, 1.5f), 0.01f)
+        assertEquals(50f, stickerBaseHeightPx(400f), 0.01f)
     }
 }

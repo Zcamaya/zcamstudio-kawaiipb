@@ -891,17 +891,13 @@ private fun StickerOverlayItem(
     val aspectRatio = imageBitmap?.let {
         if (it.height > 0) it.width.toFloat() / it.height.toFloat() else 1f
     } ?: 1f
-    val baseHeight = 88.dp
-    val boxHeight = (baseHeight * sticker.scale.coerceIn(0.45f, 2.4f))
-    val boxWidth = (boxHeight * aspectRatio).coerceAtLeast(56.dp)
     val previewWidthPx = with(density) { previewWidth.toPx().coerceAtLeast(1f) }
     val previewHeightPx = with(density) { previewHeight.toPx().coerceAtLeast(1f) }
-    val itemWidthPx = with(density) { boxWidth.toPx() }
-    val itemHeightPx = with(density) { boxHeight.toPx() }
-    val centerX = sticker.centerX.coerceIn(0f, 1f) * previewWidthPx
-    val centerY = sticker.centerY.coerceIn(0f, 1f) * previewHeightPx
-    val topLeftX = (centerX - itemWidthPx / 2f).coerceIn(0f, (previewWidthPx - itemWidthPx).coerceAtLeast(0f))
-    val topLeftY = (centerY - itemHeightPx / 2f).coerceIn(0f, (previewHeightPx - itemHeightPx).coerceAtLeast(0f))
+    val renderRect = stickerRenderRectPx(sticker.centerX, sticker.centerY, previewWidthPx, previewHeightPx, aspectRatio, sticker.scale)
+    val boxHeight = with(density) { renderRect.height().toDp() }
+    val boxWidth = with(density) { renderRect.width().toDp() }
+    val topLeftX = renderRect.left
+    val topLeftY = renderRect.top
 
     Box(
         modifier = Modifier

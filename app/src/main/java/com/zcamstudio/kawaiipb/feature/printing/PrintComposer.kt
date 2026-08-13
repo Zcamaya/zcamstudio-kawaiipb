@@ -14,7 +14,9 @@ import com.zcamstudio.kawaiipb.feature.flow.presentation.PlacedSticker
 import com.zcamstudio.kawaiipb.feature.flow.presentation.PhotoTransform
 import com.zcamstudio.kawaiipb.feature.flow.presentation.parseStripSize
 import com.zcamstudio.kawaiipb.feature.flow.presentation.resolveLayoutAssetPath
+import com.zcamstudio.kawaiipb.feature.flow.presentation.stickerRenderRectPx
 import com.zcamstudio.kawaiipb.feature.flow.presentation.resolveTemplateBackgroundPath
+import com.zcamstudio.kawaiipb.feature.flow.presentation.resolveTemplateColorArgb
 import com.zcamstudio.kawaiipb.feature.flow.presentation.resolveTemplateOverlayPath
 import com.zcamstudio.kawaiipb.services.storage.KawaiiStorageService
 import kotlin.math.max
@@ -123,7 +125,7 @@ object PrintComposer {
             val transform = uiState.photoAssignmentTransforms.getOrNull(index) ?: PhotoTransform()
             val photoBitmap = frame?.imagePath?.let { loadPreparedBitmapForSlot(it, slotRect, transform) }
             if (photoBitmap != null) {
-                drawPhotoBitmapFit(canvas, photoBitmap, slotRect, transform)
+                drawPhotoBitmapFit(canvas, photoBitmap, slotRect, transform, 1f)
             } else {
                 canvas.drawRoundRect(slotRect, PrintConstants.SLOT_BORDER_RADIUS, PrintConstants.SLOT_BORDER_RADIUS, placeholderPaint)
             }
@@ -141,7 +143,7 @@ object PrintComposer {
         storageService: KawaiiStorageService,
         progressCallback: ((Float, String) -> Unit)? = null
     ): Bitmap {
-        val bitmap = Bitmap.createBitmap(PrintConstants.PRINT_WIDTH, PrintConstants.PRINT_HEIGHT, Bitmap.Config.RGB_565)
+        val bitmap = Bitmap.createBitmap(PrintConstants.PRINT_WIDTH, PrintConstants.PRINT_HEIGHT, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bitmap)
 
         drawSheetBackground(canvas)
@@ -201,30 +203,37 @@ object PrintComposer {
         val outputWidth = (layout.canvasWidth * scale).toInt()
         val outputHeight = (layout.canvasHeight * scale).toInt()
 
-        val bitmap = Bitmap.createBitmap(outputWidth, outputHeight, Bitmap.Config.RGB_565)
+        val bitmap = Bitmap.createBitmap(outputWidth, outputHeight, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bitmap)
 
         canvas.drawColor(AndroidColor.WHITE)
         progressCallback?.invoke(0.3f, "Rendering strip layout")
 
-        val templateBackgroundPath = resolveTemplateBackgroundPath(storageService.appContext(), uiState.selectedTemplateFolderPath)
-        val backgroundBitmap = if (!templateBackgroundPath.isNullOrBlank()) {
-            if (templateBackgroundPath.startsWith("asset://")) {
-                val assetPath = templateBackgroundPath.removePrefix("asset://")
-                storageService.openAsset(assetPath)?.use { BitmapFactory.decodeStream(it) }
-            } else {
-                BitmapFactory.decodeFile(templateBackgroundPath)
-            }
+        // First, try to apply template color if one is selected
+        val templateColorArgb = resolveTemplateColorArgb(uiState.selectedTemplateFolderPath)
+        if (templateColorArgb != null) {
+            canvas.drawColor(templateColorArgb.toInt())
         } else {
-            val baseAssetPath = resolveLayoutAssetPath(layout)
-            baseAssetPath?.let { storageService.openAsset(it) }?.use { stream ->
-                BitmapFactory.decodeStream(stream)
+            // If no custom color, load background images in priority order
+            val templateBackgroundPath = resolveTemplateBackgroundPath(storageService.appContext(), uiState.selectedTemplateFolderPath)
+            val backgroundBitmap = if (!templateBackgroundPath.isNullOrBlank()) {
+                // Try template background first
+                loadBackgroundBitmap(templateBackgroundPath, storageService)
+            } else {
+                // Fall back to layout's base background image
+                val baseAssetPath = resolveLayoutAssetPath(layout)
+                if (!baseAssetPath.isNullOrBlank()) {
+                    loadBackgroundBitmap(baseAssetPath, storageService, isAsset = true)
+                } else {
+                    null
+                }
             }
-        }
 
-        if (backgroundBitmap != null) {
-            val destRect = RectF(0f, 0f, outputWidth.toFloat(), outputHeight.toFloat())
-            canvas.drawBitmap(backgroundBitmap, null, destRect, null)
+            if (backgroundBitmap != null) {
+                val destRect = RectF(0f, 0f, outputWidth.toFloat(), outputHeight.toFloat())
+                canvas.drawBitmap(backgroundBitmap, null, destRect, null)
+                backgroundBitmap.recycle()
+            }
         }
 
         val overlayPath = resolveTemplateOverlayPath(storageService.appContext(), uiState.selectedTemplateFolderPath, layout.stripType?.let { parseStripSize(it) } ?: StripSize.TwoByFour)
@@ -242,7 +251,7 @@ object PrintComposer {
             val transform = uiState.photoAssignmentTransforms.getOrNull(index) ?: PhotoTransform()
             val photoBitmap = frame?.imagePath?.let { loadPreparedBitmapForSlot(it, slotRect, transform) }
             if (photoBitmap != null) {
-                drawPhotoBitmapFit(canvas, photoBitmap, slotRect, transform)
+                drawPhotoBitmapFit(canvas, photoBitmap, slotRect, transform, scale)
             }
         }
 
@@ -266,7 +275,8 @@ object PrintComposer {
                 stickerBitmap = stickerBitmap,
                 sticker = sticker,
                 outputWidth = outputWidth,
-                outputHeight = outputHeight
+                outputHeight = outputHeight,
+                scale = scale
             )
         }
 
@@ -274,14 +284,15 @@ object PrintComposer {
         return bitmap
     }
 
-    private fun drawPhotoBitmapFit(canvas: Canvas, photoBitmap: Bitmap, slotRect: RectF, transform: PhotoTransform = PhotoTransform()) {
+    private fun drawPhotoBitmapFit(canvas: Canvas, photoBitmap: Bitmap, slotRect: RectF, transform: PhotoTransform = PhotoTransform(), scale: Float = 1f) {
         val imageWidth = photoBitmap.width.toFloat()
         val imageHeight = photoBitmap.height.toFloat()
         val baseScale = max(slotRect.width() / imageWidth, slotRect.height() / imageHeight) * 1.25f
         val scaledWidth = imageWidth * baseScale * transform.scale
         val scaledHeight = imageHeight * baseScale * transform.scale
-        val left = slotRect.left + (slotRect.width() - scaledWidth) / 2f + transform.offsetX
-        val top = slotRect.top + (slotRect.height() - scaledHeight) / 2f + transform.offsetY
+        // Scale the transform offsets by the export scale factor to maintain proportional positioning
+        val left = slotRect.left + (slotRect.width() - scaledWidth) / 2f + transform.offsetX * scale
+        val top = slotRect.top + (slotRect.height() - scaledHeight) / 2f + transform.offsetY * scale
         val destRect = RectF(left, top, left + scaledWidth, top + scaledHeight)
 
         canvas.save()
@@ -296,17 +307,15 @@ object PrintComposer {
         stickerBitmap: Bitmap,
         sticker: PlacedSticker,
         outputWidth: Int,
-        outputHeight: Int
+        outputHeight: Int,
+        scale: Float
     ) {
         val aspectRatio = if (stickerBitmap.height > 0) stickerBitmap.width.toFloat() / stickerBitmap.height.toFloat() else 1f
-        // Keep the print sticker closer to the editor preview scale.
-        val baseHeight = outputHeight * 0.18f * sticker.scale.coerceIn(0.45f, 2.4f)
-        val drawWidth = baseHeight * aspectRatio
-        val drawHeight = baseHeight
-        val centerX = sticker.centerX.coerceIn(0f, 1f) * outputWidth.toFloat()
-        val centerY = sticker.centerY.coerceIn(0f, 1f) * outputHeight.toFloat()
-        val left = centerX - drawWidth / 2f
-        val top = centerY - drawHeight / 2f
+        val drawRect = stickerRenderRectPx(sticker.centerX, sticker.centerY, outputWidth.toFloat(), outputHeight.toFloat(), aspectRatio, sticker.scale)
+        val left = drawRect.left
+        val top = drawRect.top
+        val drawWidth = drawRect.width()
+        val drawHeight = drawRect.height()
 
         canvas.save()
         canvas.translate(left + drawWidth / 2f, top + drawHeight / 2f)
@@ -315,6 +324,27 @@ object PrintComposer {
         val destRect = RectF(-drawWidth / 2f, -drawHeight / 2f, drawWidth / 2f, drawHeight / 2f)
         canvas.drawBitmap(stickerBitmap, null, destRect, null)
         canvas.restore()
+    }
+
+    private fun loadBackgroundBitmap(imagePath: String, storageService: KawaiiStorageService, isAsset: Boolean = false): Bitmap? {
+        return try {
+            when {
+                isAsset || imagePath.startsWith("asset://") -> {
+                    val assetPath = imagePath.removePrefix("asset://")
+                    storageService.openAsset(assetPath)?.use { BitmapFactory.decodeStream(it) }
+                }
+                imagePath.startsWith("file://") -> {
+                    val filePath = imagePath.removePrefix("file://")
+                    BitmapFactory.decodeFile(filePath)
+                }
+                else -> {
+                    // Try as file path first, then as asset
+                    BitmapFactory.decodeFile(imagePath) ?: storageService.openAsset(imagePath)?.use { BitmapFactory.decodeStream(it) }
+                }
+            }
+        } catch (ex: Exception) {
+            null
+        }
     }
 
     private fun loadStickerBitmap(storageService: KawaiiStorageService, assetPath: String): Bitmap? {

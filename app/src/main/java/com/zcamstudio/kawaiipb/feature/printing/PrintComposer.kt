@@ -65,59 +65,26 @@ object PrintComposer {
         progressCallback: ((Float, String) -> Unit)? = null
     ): Boolean {
         progressCallback?.invoke(0.05f, "Preparing PDF export")
+        val bitmap = renderPrintBitmap(uiState, storageService, progressCallback) ?: return false
+        val saved = savePrintFile(storageService, uiState.sessionId, bitmap)
+        if (saved) progressCallback?.invoke(1f, "PDF created successfully")
+        return saved
+    }
+
+    fun renderPrintBitmap(
+        uiState: FlowUiState,
+        storageService: KawaiiStorageService,
+        progressCallback: ((Float, String) -> Unit)? = null
+    ): Bitmap? {
         val assignedFrames = uiState.photoAssignmentAssignments.map { index ->
             index?.let { uiState.capturedFrames.getOrNull(it) }
         }
 
         return if (uiState.stripLayout != null) {
             progressCallback?.invoke(0.15f, "Loading layout assets")
-            renderLayoutExact(uiState.stripLayout, assignedFrames, uiState, storageService, progressCallback)
+            buildLayoutExactBitmap(uiState.stripLayout, assignedFrames, uiState, storageService, progressCallback)
         } else {
-            val bitmap = Bitmap.createBitmap(PrintConstants.PRINT_WIDTH, PrintConstants.PRINT_HEIGHT, Bitmap.Config.RGB_565)
-            val canvas = Canvas(bitmap)
-
-            drawSheetBackground(canvas)
-            drawSheetFrame(canvas)
-            progressCallback?.invoke(0.25f, "Rendering strip preview")
-
-            val leftStripBounds = RectF(
-                PrintConstants.STRIP_LEFT.toFloat(),
-                PrintConstants.STRIP_TOP.toFloat(),
-                (PrintConstants.STRIP_LEFT + PrintConstants.STRIP_WIDTH).toFloat(),
-                (PrintConstants.STRIP_TOP + PrintConstants.STRIP_HEIGHT).toFloat()
-            )
-
-            val rightStripBounds = RectF(
-                (PrintConstants.STRIP_LEFT + PrintConstants.STRIP_WIDTH + PrintConstants.STRIP_GAP).toFloat(),
-                PrintConstants.STRIP_TOP.toFloat(),
-                (PrintConstants.STRIP_LEFT + PrintConstants.STRIP_WIDTH + PrintConstants.STRIP_GAP + PrintConstants.STRIP_WIDTH).toFloat(),
-                (PrintConstants.STRIP_TOP + PrintConstants.STRIP_HEIGHT).toFloat()
-            )
-
-            renderStrip(
-                canvas,
-                leftStripBounds,
-                uiState.stripSize,
-                assignedFrames.take(uiState.stripSize.frameCount),
-                uiState,
-                storageService
-            )
-            renderStrip(
-                canvas,
-                rightStripBounds,
-                uiState.stripSize,
-                assignedFrames.drop(uiState.stripSize.frameCount),
-                uiState,
-                storageService
-            )
-
-            renderSheetHeader(canvas)
-            renderSheetFooter(canvas)
-            progressCallback?.invoke(0.7f, "Finalizing PDF")
-
-            val saved = savePrintFile(storageService, uiState.sessionId, bitmap)
-            if (saved) progressCallback?.invoke(1f, "PDF created successfully")
-            saved
+            buildStandardSheetBitmap(uiState, assignedFrames, storageService, progressCallback)
         }
     }
 
@@ -168,22 +135,69 @@ object PrintComposer {
         canvas.drawRoundRect(slotRect, PrintConstants.SLOT_BORDER_RADIUS, PrintConstants.SLOT_BORDER_RADIUS, slotBorderPaint)
     }
 
-    private fun renderLayoutExact(
+    private fun buildStandardSheetBitmap(
+        uiState: FlowUiState,
+        assignedFrames: List<CaptureFrame?>,
+        storageService: KawaiiStorageService,
+        progressCallback: ((Float, String) -> Unit)? = null
+    ): Bitmap {
+        val bitmap = Bitmap.createBitmap(PrintConstants.PRINT_WIDTH, PrintConstants.PRINT_HEIGHT, Bitmap.Config.RGB_565)
+        val canvas = Canvas(bitmap)
+
+        drawSheetBackground(canvas)
+        drawSheetFrame(canvas)
+        progressCallback?.invoke(0.25f, "Rendering strip preview")
+
+        val leftStripBounds = RectF(
+            PrintConstants.STRIP_LEFT.toFloat(),
+            PrintConstants.STRIP_TOP.toFloat(),
+            (PrintConstants.STRIP_LEFT + PrintConstants.STRIP_WIDTH).toFloat(),
+            (PrintConstants.STRIP_TOP + PrintConstants.STRIP_HEIGHT).toFloat()
+        )
+
+        val rightStripBounds = RectF(
+            (PrintConstants.STRIP_LEFT + PrintConstants.STRIP_WIDTH + PrintConstants.STRIP_GAP).toFloat(),
+            PrintConstants.STRIP_TOP.toFloat(),
+            (PrintConstants.STRIP_LEFT + PrintConstants.STRIP_WIDTH + PrintConstants.STRIP_GAP + PrintConstants.STRIP_WIDTH).toFloat(),
+            (PrintConstants.STRIP_TOP + PrintConstants.STRIP_HEIGHT).toFloat()
+        )
+
+        renderStrip(
+            canvas,
+            leftStripBounds,
+            uiState.stripSize,
+            assignedFrames.take(uiState.stripSize.frameCount),
+            uiState,
+            storageService
+        )
+        renderStrip(
+            canvas,
+            rightStripBounds,
+            uiState.stripSize,
+            assignedFrames.drop(uiState.stripSize.frameCount),
+            uiState,
+            storageService
+        )
+
+        renderSheetHeader(canvas)
+        renderSheetFooter(canvas)
+        progressCallback?.invoke(0.7f, "Finalizing PDF")
+        return bitmap
+    }
+
+    private fun buildLayoutExactBitmap(
         layout: StripLayout,
         frames: List<CaptureFrame?>,
         uiState: FlowUiState,
         storageService: KawaiiStorageService,
         progressCallback: ((Float, String) -> Unit)? = null
-    ): Boolean {
-        val maxScale = 1.5f
-        val pageScale = min(
-            maxScale,
-            min(
-                PrintConstants.PRINT_WIDTH.toFloat() / layout.canvasWidth,
-                PrintConstants.PRINT_HEIGHT.toFloat() / layout.canvasHeight
-            )
+    ): Bitmap {
+        // Match the preview's fit behavior: scale the layout to the available page space,
+        // even when that means scaling up instead of staying at the native canvas size.
+        val scale = min(
+            PrintConstants.PRINT_WIDTH.toFloat() / layout.canvasWidth,
+            PrintConstants.PRINT_HEIGHT.toFloat() / layout.canvasHeight
         )
-        val scale = pageScale.coerceAtLeast(1f)
         val outputWidth = (layout.canvasWidth * scale).toInt()
         val outputHeight = (layout.canvasHeight * scale).toInt()
 
@@ -256,10 +270,8 @@ object PrintComposer {
             )
         }
 
-        progressCallback?.invoke(0.75f, "Saving PDF file")
-        val saved = savePrintFile(storageService, uiState.sessionId, bitmap)
-        if (saved) progressCallback?.invoke(1f, "PDF created successfully")
-        return saved
+        progressCallback?.invoke(0.75f, "Rendering print bitmap")
+        return bitmap
     }
 
     private fun drawPhotoBitmapFit(canvas: Canvas, photoBitmap: Bitmap, slotRect: RectF, transform: PhotoTransform = PhotoTransform()) {
@@ -287,7 +299,8 @@ object PrintComposer {
         outputHeight: Int
     ) {
         val aspectRatio = if (stickerBitmap.height > 0) stickerBitmap.width.toFloat() / stickerBitmap.height.toFloat() else 1f
-        val baseHeight = min(outputWidth, outputHeight) * 0.16f * sticker.scale.coerceIn(0.45f, 2.4f)
+        // Keep the print sticker closer to the editor preview scale.
+        val baseHeight = outputHeight * 0.18f * sticker.scale.coerceIn(0.45f, 2.4f)
         val drawWidth = baseHeight * aspectRatio
         val drawHeight = baseHeight
         val centerX = sticker.centerX.coerceIn(0f, 1f) * outputWidth.toFloat()
@@ -313,8 +326,9 @@ object PrintComposer {
     }
 
     private fun loadPreparedBitmapForSlot(path: String, slotRect: RectF, transform: PhotoTransform): Bitmap? {
-        val targetWidth = (slotRect.width() * max(1f, transform.scale)).toInt()
-        val targetHeight = (slotRect.height() * max(1f, transform.scale)).toInt()
+        // The draw step already applies transform.scale, so we only decode to the slot size here.
+        val targetWidth = slotRect.width().toInt()
+        val targetHeight = slotRect.height().toInt()
         return loadPreparedPhoto(path, targetWidth, targetHeight)
     }
 

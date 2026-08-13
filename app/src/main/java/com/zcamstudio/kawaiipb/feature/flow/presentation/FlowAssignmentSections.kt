@@ -1,4 +1,4 @@
-package com.zcamstudio.kawaiipb.feature.flow.presentation
+﻿package com.zcamstudio.kawaiipb.feature.flow.presentation
 
 import android.content.Context
 import androidx.compose.foundation.BorderStroke
@@ -6,6 +6,10 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.drag
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -40,6 +44,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -61,8 +66,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.foundation.gestures.detectDragGestures
-import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
@@ -721,7 +725,9 @@ internal fun FlowAssignmentLayoutPreview(
                     selected = sticker.id == selectedStickerId,
                     previewWidth = targetWidth,
                     previewHeight = targetHeight,
-                    onSelect = { onSelectSticker(sticker.id) },
+                    onSelect = {
+                        onSelectSticker(if (sticker.id == selectedStickerId) null else sticker.id)
+                    },
                     onMove = { centerX, centerY -> onUpdateStickerPosition(sticker.id, centerX, centerY) },
                     onScale = { scale -> onUpdateStickerScale(sticker.id, scale) },
                     onRotate = { rotation -> onUpdateStickerRotation(sticker.id, rotation) },
@@ -869,6 +875,19 @@ private fun StickerOverlayItem(
     val context = LocalContext.current
     val density = LocalDensity.current
     val imageBitmap = remember(sticker.assetPath) { loadAssetImage(context, sticker.assetPath) }
+    var committedRotation by remember(sticker.id) { mutableFloatStateOf(sticker.rotation) }
+    var committedScale by remember(sticker.id) { mutableFloatStateOf(sticker.scale) }
+    var rotateDragStartRotation by remember(sticker.id) { mutableStateOf(sticker.rotation) }
+    var rotateDragTotal by remember(sticker.id) { mutableStateOf(Offset.Zero) }
+    var scaleDragStartScale by remember(sticker.id) { mutableStateOf(sticker.scale) }
+    var scaleDragTotal by remember(sticker.id) { mutableStateOf(Offset.Zero) }
+
+    LaunchedEffect(sticker.rotation) {
+        committedRotation = sticker.rotation
+    }
+    LaunchedEffect(sticker.scale) {
+        committedScale = sticker.scale
+    }
     val aspectRatio = imageBitmap?.let {
         if (it.height > 0) it.width.toFloat() / it.height.toFloat() else 1f
     } ?: 1f
@@ -901,7 +920,7 @@ private fun StickerOverlayItem(
                 )
                 .background(Color.White.copy(alpha = 0.03f))
                 .pointerInput(sticker.id) {
-                    detectTapGestures(onTap = { if (!selected) onSelect() })
+                    detectTapGestures(onTap = { onSelect() })
                 }
                 .pointerInput(sticker.id) {
                     var currentCenterX = sticker.centerX
@@ -948,6 +967,22 @@ private fun StickerOverlayItem(
 
         if (selected) {
             CornerActionButton(
+                label = "↻",
+                modifier = Modifier.align(Alignment.TopStart).offset(x = (-10).dp, y = (-10).dp),
+                onClick = { },
+                onDragStart = {
+                    rotateDragStartRotation = committedRotation
+                    rotateDragTotal = Offset.Zero
+                },
+                onDrag = { dragAmount ->
+                    rotateDragTotal += dragAmount
+                    // Drag right or top: rotate right (positive); drag left or bottom: rotate left (negative)
+                    val rotationDelta = (rotateDragTotal.x - rotateDragTotal.y) * 0.5f
+                    committedRotation = rotateDragStartRotation + rotationDelta
+                    onRotate(committedRotation)
+                }
+            )
+            CornerActionButton(
                 label = "×",
                 modifier = Modifier.align(Alignment.TopEnd).offset(x = 10.dp, y = (-10).dp),
                 backgroundColor = Color(0xFFFF5D5D),
@@ -959,6 +994,22 @@ private fun StickerOverlayItem(
                 modifier = Modifier.align(Alignment.BottomStart).offset(x = (-10).dp, y = 10.dp),
                 onClick = onFlip
             )
+            CornerActionButton(
+                label = "+",
+                modifier = Modifier.align(Alignment.BottomEnd).offset(x = 10.dp, y = 10.dp),
+                onClick = { },
+                onDragStart = {
+                    scaleDragStartScale = committedScale
+                    scaleDragTotal = Offset.Zero
+                },
+                onDrag = { dragAmount ->
+                    scaleDragTotal += dragAmount
+                    // Drag right or bottom: enlarge (positive); drag left or top: shrink (negative)
+                    val scaleDelta = (scaleDragTotal.x + scaleDragTotal.y) * 0.003f
+                    committedScale = (scaleDragStartScale + scaleDelta).coerceIn(0.45f, 2.4f)
+                    onScale(committedScale)
+                }
+            )
         }
     }
 }
@@ -969,7 +1020,10 @@ private fun CornerActionButton(
     modifier: Modifier = Modifier,
     backgroundColor: Color = Color.White,
     borderColor: Color = Color(0xFFE0D6E6),
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    onDragStart: (() -> Unit)? = null,
+    onDrag: ((Offset) -> Unit)? = null,
+    onDragEnd: (() -> Unit)? = null
 ) {
     Box(
         modifier = modifier
@@ -977,7 +1031,27 @@ private fun CornerActionButton(
             .clip(CircleShape)
             .background(backgroundColor)
             .border(1.dp, borderColor, CircleShape)
-            .clickable { onClick() },
+            .pointerInput(Unit) {
+                if (onDrag != null) {
+                    awaitEachGesture {
+                        val down = awaitFirstDown(requireUnconsumed = false)
+                        down.consume()
+                        onDragStart?.invoke()
+
+                        drag(down.id) { change ->
+                            val dragAmount = change.positionChange()
+                            if (dragAmount != Offset.Zero) {
+                                change.consume()
+                                onDrag(dragAmount)
+                            }
+                        }
+
+                        onDragEnd?.invoke()
+                    }
+                } else {
+                    detectTapGestures(onTap = { onClick() })
+                }
+            },
         contentAlignment = Alignment.Center
     ) {
         Text(

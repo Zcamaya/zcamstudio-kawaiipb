@@ -37,6 +37,8 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
@@ -48,11 +50,13 @@ import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
@@ -137,8 +141,8 @@ internal fun FlowPhotoAssignmentStage(
     var colorPickerSeedColor by remember { mutableStateOf(customColorPreviewArgb) }
     val sectionLabels = listOf("Captured Photos", "Template", "Stickers")
 
-    LaunchedEffect(selectedTemplateColor) {
-        if (selectedTemplateColor != null) {
+    LaunchedEffect(selectedTemplateColor, showColorPicker) {
+        if (!showColorPicker && selectedTemplateColor != null) {
             customColorPreviewArgb = selectedTemplateColor
             colorPickerSeedColor = selectedTemplateColor
         }
@@ -160,6 +164,7 @@ internal fun FlowPhotoAssignmentStage(
                         .heightIn(max = maxWorkspaceHeight)
                         .weight(0.40f)
                         .widthIn(max = 460.dp)
+                        .clipToBounds()
                         .padding(start = 6.dp, top = 6.dp, bottom = 6.dp)
                 ) {
                     FlowGraphicToolWorkspace(
@@ -261,8 +266,11 @@ internal fun FlowPhotoAssignmentStage(
                             }
                             1 -> {
                                 Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                                    val templates = remember(uiState.stripSize, context) {
-                                        listTemplateOverlayOptions(context, uiState.stripSize)
+                                    val templates = remember(uiState.stripSize, context, customColorPreviewArgb) {
+                                        buildList {
+                                            add(createColorTemplateOption("Custom color", customColorPreviewArgb))
+                                            addAll(listTemplateOverlayOptions(context, uiState.stripSize))
+                                        }
                                     }
                                     val templateCardInnerPadding = if (showColorPicker) 0.dp else 12.dp
                                     Surface(
@@ -278,118 +286,89 @@ internal fun FlowPhotoAssignmentStage(
                                             if (showColorPicker) {
                                                 TemplateColorPickerInline(
                                                     initialColorArgb = colorPickerSeedColor,
-                                                    onClose = {
+                                                    onCancel = {
                                                         showColorPicker = false
-                                                        colorPickerSeedColor = customColorPreviewArgb
                                                     },
-                                                    onColorSelected = { colorArgb ->
+                                                    onPreviewColorChanged = { colorArgb ->
                                                         customColorPreviewArgb = colorArgb
-                                                        colorPickerSeedColor = colorArgb
                                                         onSelectTemplateOverlay(templateColorSelectionKey(colorArgb))
                                                     }
                                                 )
-                                            } else {
-                                                val customColorSelected = isTemplateColorSelection(uiState.selectedTemplateFolderPath)
-                                                val customColorValue = customColorPreviewArgb
-                                                Surface(
-                                                    shape = RoundedCornerShape(18.dp),
-                                                    color = if (customColorSelected) WarmCream.copy(alpha = 0.82f) else Color.White,
-                                                    border = BorderStroke(1.dp, if (customColorSelected) CherryPink else Color(0xFFE8DDE8)),
-                                                    modifier = Modifier
-                                                        .fillMaxWidth()
-                                                        .clickable {
-                                                            val nextPath = if (customColorSelected) null else templateColorSelectionKey(customColorValue)
-                                                            onSelectTemplateOverlay(nextPath)
-                                                        }
-                                                ) {
-                                                    Row(
-                                                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
-                                                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                                                        verticalAlignment = Alignment.CenterVertically
-                                                    ) {
-                                                        Box(
-                                                            modifier = Modifier
-                                                                .size(26.dp)
-                                                                .clip(CircleShape)
-                                                                .background(Color(customColorValue))
-                                                                .border(1.dp, Color(0xFFE0D6E6), CircleShape)
-                                                        )
-                                                        Text(
-                                                            text = "Custom color",
-                                                            color = InkRose,
-                                                            style = MaterialTheme.typography.bodyLarge,
-                                                            modifier = Modifier.weight(1f)
-                                                        )
-                                                        KawaiiSecondaryButton(text = "Picker") {
-                                                            colorPickerSeedColor = customColorValue
-                                                            showColorPicker = true
-                                                        }
-                                                    }
-                                                }
                                             }
 
-                                            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                                                Row(
-                                                    modifier = Modifier.fillMaxWidth(),
-                                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                                    verticalAlignment = Alignment.CenterVertically
-                                                ) {
-                                                    Text(text = "Templates", color = InkRose, style = MaterialTheme.typography.titleMedium)
-                                                    Text(
-                                                        text = "${templates.size} found",
-                                                        color = SoftText,
-                                                        style = MaterialTheme.typography.bodySmall
-                                                    )
-                                                }
-
-                                                if (templates.isEmpty()) {
-                                                    Surface(
-                                                        shape = RoundedCornerShape(18.dp),
-                                                        color = WarmCream.copy(alpha = 0.55f),
-                                                        border = BorderStroke(1.dp, Color(0xFFE8DDE8)),
-                                                        modifier = Modifier.fillMaxWidth()
+                                            if (!showColorPicker) {
+                                                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                                    Row(
+                                                        modifier = Modifier.fillMaxWidth(),
+                                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                                        verticalAlignment = Alignment.CenterVertically
                                                     ) {
-                                                        Column(
-                                                            modifier = Modifier.padding(12.dp),
-                                                            verticalArrangement = Arrangement.spacedBy(4.dp)
-                                                        ) {
-                                                            Text(
-                                                                text = "No imported templates yet",
-                                                                color = InkRose,
-                                                                style = MaterialTheme.typography.bodyLarge
-                                                            )
-                                                            Text(
-                                                                text = "Add template folders to Downloads/KawaiiPB/Templates to see them here.",
-                                                                color = SoftText,
-                                                                style = MaterialTheme.typography.bodyMedium
-                                                            )
-                                                        }
+                                                        Text(text = "Templates", color = InkRose, style = MaterialTheme.typography.titleMedium)
+                                                        Text(
+                                                            text = "${templates.size} found",
+                                                            color = SoftText,
+                                                            style = MaterialTheme.typography.bodySmall
+                                                        )
                                                     }
-                                                } else {
-                                                    LazyVerticalGrid(
-                                                        columns = GridCells.Adaptive(minSize = 180.dp),
-                                                        modifier = Modifier
-                                                            .fillMaxWidth()
-                                                            .heightIn(min = 220.dp, max = 360.dp),
-                                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                                        verticalArrangement = Arrangement.spacedBy(8.dp),
-                                                        contentPadding = PaddingValues(bottom = 4.dp)
-                                                    ) {
-                                                        items(templates) { template ->
-                                                            val selected = template.templateFolderPath == uiState.selectedTemplateFolderPath
-                                                            TemplateOptionCard(
-                                                                template = template,
-                                                                stripSize = uiState.stripSize,
-                                                                selected = selected,
-                                                                onClick = { onSelectTemplateOverlay(template.templateFolderPath) }
-                                                            )
+
+                                                    if (templates.isEmpty()) {
+                                                        Surface(
+                                                            shape = RoundedCornerShape(18.dp),
+                                                            color = WarmCream.copy(alpha = 0.55f),
+                                                            border = BorderStroke(1.dp, Color(0xFFE8DDE8)),
+                                                            modifier = Modifier.fillMaxWidth()
+                                                        ) {
+                                                            Column(
+                                                                modifier = Modifier.padding(12.dp),
+                                                                verticalArrangement = Arrangement.spacedBy(4.dp)
+                                                            ) {
+                                                                Text(
+                                                                    text = "No imported templates yet",
+                                                                    color = InkRose,
+                                                                    style = MaterialTheme.typography.bodyLarge
+                                                                )
+                                                                Text(
+                                                                    text = "Add template folders to Downloads/KawaiiPB/Templates to see them here.",
+                                                                    color = SoftText,
+                                                                    style = MaterialTheme.typography.bodyMedium
+                                                                )
+                                                            }
+                                                        }
+                                                    } else {
+                                                        LazyVerticalGrid(
+                                                            columns = GridCells.Adaptive(minSize = 180.dp),
+                                                            modifier = Modifier
+                                                                .fillMaxWidth()
+                                                                .heightIn(min = 220.dp, max = 360.dp),
+                                                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                                                            contentPadding = PaddingValues(bottom = 4.dp)
+                                                        ) {
+                                                            items(templates) { template ->
+                                                                val selected = template.templateFolderPath == uiState.selectedTemplateFolderPath
+                                                                TemplateOptionCard(
+                                                                    template = template,
+                                                                    stripSize = uiState.stripSize,
+                                                                    selected = selected,
+                                                                    onClick = { onSelectTemplateOverlay(template.templateFolderPath) },
+                                                                    onPickerClick = if (template.colorArgb != null) {
+                                                                        {
+                                                                            colorPickerSeedColor = customColorPreviewArgb
+                                                                            onSelectTemplateOverlay(template.templateFolderPath)
+                                                                            showColorPicker = true
+                                                                        }
+                                                                    } else {
+                                                                        null
+                                                                    }
+                                                                )
+                                                            }
                                                         }
                                                     }
                                                 }
                                             }
                                         }
                                     }
-                                    }
+                                }
                             }
                             2 -> {
                                 val stickerOptions = remember(context) { listStickerAssetOptions(context) }
@@ -491,7 +470,8 @@ internal fun FlowGraphicToolWorkspace(
     onFlipSticker: (Int) -> Unit,
     onRemoveSticker: (Int) -> Unit,
     onUpdatePhotoTransform: (Int, Float, Float, Float, Float) -> Unit,
-    onResetPhotoTransform: (Int) -> Unit
+    onResetPhotoTransform: (Int) -> Unit,
+    templateColorPreviewArgb: Long? = null
 ) {
     val aspectRatio = layout?.let { it.canvasWidth.toFloat() / it.canvasHeight.toFloat() } ?: (2f / 3f)
 
@@ -522,6 +502,7 @@ internal fun FlowGraphicToolWorkspace(
             onRemoveSticker = onRemoveSticker,
             onUpdatePhotoTransform = onUpdatePhotoTransform,
             onResetPhotoTransform = onResetPhotoTransform,
+            templateColorPreviewArgb = templateColorPreviewArgb,
             modifier = Modifier.fillMaxSize()
         )
     }
@@ -571,6 +552,7 @@ internal fun FlowAssignmentLayoutPreview(
     onRemoveSticker: (Int) -> Unit,
     onUpdatePhotoTransform: (Int, Float, Float, Float, Float) -> Unit,
     onResetPhotoTransform: (Int) -> Unit,
+    templateColorPreviewArgb: Long? = null,
     modifier: Modifier = Modifier
 ) {
     if (layout == null) {
@@ -585,7 +567,8 @@ internal fun FlowAssignmentLayoutPreview(
     val baseBackgroundImage = remember(baseAssetPath) { baseAssetPath?.let { loadAssetImage(context, it) } }
     val templateBackgroundPath = remember(selectedTemplateFolderPath) { resolveTemplateBackgroundPath(context, selectedTemplateFolderPath) }
     val templateOverlayPath = remember(selectedTemplateFolderPath, stripSize) { resolveTemplateOverlayPath(context, selectedTemplateFolderPath, stripSize) }
-    val templateColorArgb = remember(selectedTemplateFolderPath) { resolveTemplateColorArgb(selectedTemplateFolderPath) }
+    val templateColorArgbFromPath = remember(selectedTemplateFolderPath) { resolveTemplateColorArgb(selectedTemplateFolderPath) }
+    val templateColorArgb = templateColorPreviewArgb ?: templateColorArgbFromPath
     val templateBackgroundImage = remember(templateBackgroundPath) { templateBackgroundPath?.let { loadTemplateImage(context, it) } }
     val overlayBitmap = remember(templateOverlayPath) { templateOverlayPath?.let { loadTemplateImage(context, it) } }
 
@@ -601,6 +584,7 @@ internal fun FlowAssignmentLayoutPreview(
             modifier = Modifier
                 .size(width = targetWidth, height = targetHeight)
                 .align(Alignment.Center)
+                .clipToBounds()
         ) {
             if (templateColorArgb != null) {
                 Box(modifier = Modifier.fillMaxSize().background(Color(templateColorArgb)))
@@ -738,16 +722,9 @@ internal fun FlowAssignmentLayoutPreview(
                 )
             }
 
-            val orderedStickers = remember(placedStickers, selectedStickerId) {
-                placedStickers.sortedWith { a, b ->
-                    val aSelected = a.id == selectedStickerId
-                    val bSelected = b.id == selectedStickerId
-                    when {
-                        aSelected && !bSelected -> 1
-                        !aSelected && bSelected -> -1
-                        else -> a.id.compareTo(b.id)
-                    }
-                }
+            val orderedStickers = buildList {
+                addAll(placedStickers.filterNot { it.id == selectedStickerId })
+                placedStickers.firstOrNull { it.id == selectedStickerId }?.let { add(it) }
             }
 
             orderedStickers.forEach { sticker ->
@@ -757,9 +734,7 @@ internal fun FlowAssignmentLayoutPreview(
                         selected = sticker.id == selectedStickerId,
                         previewWidth = targetWidth,
                         previewHeight = targetHeight,
-                        onSelect = {
-                            onSelectSticker(if (sticker.id == selectedStickerId) null else sticker.id)
-                        },
+                        onSelect = { onSelectSticker(sticker.id) },
                         onMove = { centerX, centerY -> onUpdateStickerPosition(sticker.id, centerX, centerY) },
                         onScale = { scale -> onUpdateStickerScale(sticker.id, scale) },
                         onRotate = { rotation -> onUpdateStickerRotation(sticker.id, rotation) },
@@ -892,6 +867,37 @@ private fun StickerOptionCard(
     }
 }
 
+/**
+ * Smooth clamping with damping resistance as position approaches bounds.
+ * Provides haptic-like resistance without hard snapping.
+ */
+private fun smoothClampPosition(value: Float, min: Float, max: Float, dampingZone: Float = 0.08f): Float {
+    return when {
+        value < min -> {
+            val overshoot = min - value
+            val resistance = (overshoot / dampingZone).coerceIn(0f, 1f)
+            min - (overshoot * (1f - resistance * 0.85f))
+        }
+        value > max -> {
+            val overshoot = value - max
+            val resistance = (overshoot / dampingZone).coerceIn(0f, 1f)
+            max + (overshoot * (1f - resistance * 0.85f))
+        }
+        else -> value
+    }
+}
+
+/**
+ * Calculates proximity to boundaries (0.0 = far from boundary, 1.0 = at boundary).
+ */
+private fun boundaryProximity(value: Float, min: Float = 0.05f, max: Float = 0.95f, zone: Float = 0.12f): Float {
+    return when {
+        value < min + zone -> (min + zone - value) / zone
+        value > max - zone -> (value - (max - zone)) / zone
+        else -> 0f
+    }.coerceIn(0f, 1f)
+}
+
 @Composable
 private fun StickerOverlayItem(
     sticker: PlacedSticker,
@@ -914,6 +920,8 @@ private fun StickerOverlayItem(
     var rotateDragTotal by remember(sticker.id) { mutableStateOf(Offset.Zero) }
     var scaleDragStartScale by remember(sticker.id) { mutableStateOf(sticker.scale) }
     var scaleDragTotal by remember(sticker.id) { mutableStateOf(Offset.Zero) }
+    var proximityX by remember(sticker.id) { mutableFloatStateOf(0f) }
+    var proximityY by remember(sticker.id) { mutableFloatStateOf(0f) }
 
     LaunchedEffect(sticker.rotation) {
         committedRotation = sticker.rotation
@@ -921,12 +929,40 @@ private fun StickerOverlayItem(
     LaunchedEffect(sticker.scale) {
         committedScale = sticker.scale
     }
+
+    var currentCenterX by remember(sticker.id) { mutableStateOf(sticker.centerX) }
+    var currentCenterY by remember(sticker.id) { mutableStateOf(sticker.centerY) }
+    var currentScale by remember(sticker.id) { mutableStateOf(sticker.scale) }
+    var currentRotation by remember(sticker.id) { mutableStateOf(sticker.rotation) }
+
+    LaunchedEffect(sticker.centerX) { currentCenterX = sticker.centerX }
+    LaunchedEffect(sticker.centerY) { currentCenterY = sticker.centerY }
+    LaunchedEffect(sticker.scale) { currentScale = sticker.scale }
+    LaunchedEffect(sticker.rotation) { currentRotation = sticker.rotation }
+    
+    LaunchedEffect(currentCenterX) {
+        proximityX = boundaryProximity(currentCenterX)
+    }
+    LaunchedEffect(currentCenterY) {
+        proximityY = boundaryProximity(currentCenterY)
+    }
+
     val aspectRatio = imageBitmap?.let {
         if (it.height > 0) it.width.toFloat() / it.height.toFloat() else 1f
     } ?: 1f
     val previewWidthPx = with(density) { previewWidth.toPx().coerceAtLeast(1f) }
     val previewHeightPx = with(density) { previewHeight.toPx().coerceAtLeast(1f) }
-    val renderRect = stickerRenderRectPx(sticker.centerX, sticker.centerY, previewWidthPx, previewHeightPx, aspectRatio, sticker.scale)
+    
+    // Render from current position directly for zero-lag fluid dragging
+    val renderRect = stickerRenderRectPx(
+        currentCenterX,
+        currentCenterY,
+        previewWidthPx,
+        previewHeightPx,
+        aspectRatio,
+        sticker.scale,
+        sticker.rotation
+    )
     val boxHeight = with(density) { renderRect.height().toDp() }
     val boxWidth = with(density) { renderRect.width().toDp() }
     val topLeftX = renderRect.left
@@ -938,45 +974,55 @@ private fun StickerOverlayItem(
             .width(boxWidth)
             .height(boxHeight)
             .zIndex(if (selected) 1f else 0f)
+            .pointerInput(sticker.id) {
+                detectTapGestures(onTap = { onSelect() })
+            }
+            .pointerInput(sticker.id, selected) {
+                if (!selected) return@pointerInput
+                detectTransformGestures { _, pan, zoom, rotation ->
+                    val newCenterX = smoothClampPosition(currentCenterX + (pan.x / previewWidthPx), 0.05f, 0.95f)
+                    val newCenterY = smoothClampPosition(currentCenterY + (pan.y / previewHeightPx), 0.05f, 0.95f)
+                    
+                    currentCenterX = newCenterX
+                    currentCenterY = newCenterY
+                    currentScale = (currentScale * zoom).coerceIn(0.45f, 3.5f)
+                    currentRotation = currentRotation + (rotation * 180f / PI.toFloat())
+
+                    if (pan != Offset.Zero) {
+                        onMove(currentCenterX, currentCenterY)
+                    }
+                    if (zoom != 1f) {
+                        onScale(currentScale)
+                    }
+                    if (rotation != 0f) {
+                        onRotate(currentRotation)
+                    }
+                }
+            }
     ) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .clip(RoundedCornerShape(18.dp))
                 .border(
                     width = if (selected) 2.dp else 1.dp,
-                    color = if (selected) CherryPink else Color.White.copy(alpha = 0.55f),
+                    color = when {
+                        !selected -> Color.White.copy(alpha = 0.55f)
+                        proximityX > 0.3f || proximityY > 0.3f -> {
+                            // Subtle warning color when near boundary
+                            CherryPink.copy(alpha = 0.7f + (proximityX.coerceAtLeast(proximityY) * 0.3f))
+                        }
+                        else -> CherryPink
+                    },
                     shape = RoundedCornerShape(18.dp)
                 )
-                .background(Color.White.copy(alpha = 0.03f))
-                .pointerInput(sticker.id) {
-                    detectTapGestures(onTap = { onSelect() })
-                }
-                .pointerInput(sticker.id) {
-                    var currentCenterX = sticker.centerX
-                    var currentCenterY = sticker.centerY
-                    var currentScale = sticker.scale
-                    var currentRotation = sticker.rotation
-
-                    detectTransformGestures { _, pan, zoom, rotation ->
-                        if (!selected) onSelect()
-
-                        currentCenterX = (currentCenterX + (pan.x / previewWidthPx)).coerceIn(0f, 1f)
-                        currentCenterY = (currentCenterY + (pan.y / previewHeightPx)).coerceIn(0f, 1f)
-                        currentScale = (currentScale * zoom).coerceIn(0.45f, 2.4f)
-                        currentRotation = currentRotation + (rotation * 180f / PI.toFloat())
-
-                        if (pan != Offset.Zero) {
-                            onMove(currentCenterX, currentCenterY)
-                        }
-                        if (zoom != 1f) {
-                            onScale(currentScale)
-                        }
-                        if (rotation != 0f) {
-                            onRotate(currentRotation)
-                        }
-                    }
-                },
+                .background(
+                    when {
+                        !selected -> Color.White.copy(alpha = 0.03f)
+                        proximityX > 0.5f || proximityY > 0.5f -> BlossomGlow.copy(alpha = 0.08f)
+                        else -> Color.White.copy(alpha = 0.03f)
+                    },
+                    RoundedCornerShape(18.dp)
+                ),
             contentAlignment = Alignment.Center
         ) {
             if (imageBitmap != null) {
@@ -1006,7 +1052,6 @@ private fun StickerOverlayItem(
                 },
                 onDrag = { dragAmount ->
                     rotateDragTotal += dragAmount
-                    // Drag right or top: rotate right (positive); drag left or bottom: rotate left (negative)
                     val rotationDelta = (rotateDragTotal.x - rotateDragTotal.y) * 0.5f
                     committedRotation = rotateDragStartRotation + rotationDelta
                     onRotate(committedRotation)
@@ -1034,9 +1079,8 @@ private fun StickerOverlayItem(
                 },
                 onDrag = { dragAmount ->
                     scaleDragTotal += dragAmount
-                    // Drag right or bottom: enlarge (positive); drag left or top: shrink (negative)
                     val scaleDelta = (scaleDragTotal.x + scaleDragTotal.y) * 0.003f
-                    committedScale = (scaleDragStartScale + scaleDelta).coerceIn(0.45f, 2.4f)
+                    committedScale = (scaleDragStartScale + scaleDelta).coerceIn(0.45f, 3.5f)
                     onScale(committedScale)
                 }
             )
@@ -1128,7 +1172,8 @@ private fun TemplateOptionCard(
     template: TemplateOverlayOption,
     stripSize: StripSize,
     selected: Boolean,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    onPickerClick: (() -> Unit)? = null
 ) {
     val context = LocalContext.current
     val previewPath = remember(template.path) {
@@ -1137,8 +1182,23 @@ private fun TemplateOptionCard(
     val previewImage = remember(previewPath) {
         previewPath?.let { loadTemplateImage(context, it) }
     }
+    val isCustomColor = template.colorArgb != null
+    val previewColor = template.colorArgb?.let { Color(it) } ?: Color.Transparent
     val surfaceColor = if (selected) CherryPink.copy(alpha = 0.10f) else Color.White
     val borderColor = if (selected) CherryPink else Color(0xFFE8DDE8)
+    val previewBackgroundModifier = when {
+        isCustomColor -> Modifier.background(previewColor)
+        previewImage == null -> Modifier.background(
+            Brush.linearGradient(
+                colors = listOf(
+                    BlossomGlow,
+                    SoftLavender.copy(alpha = 0.9f),
+                    MintFoam.copy(alpha = 0.9f)
+                )
+            )
+        )
+        else -> Modifier.background(Color.Transparent)
+    }
 
     Surface(
         shape = RoundedCornerShape(20.dp),
@@ -1153,19 +1213,7 @@ private fun TemplateOptionCard(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(118.dp)
-                    .background(
-                        if (previewImage == null) {
-                            Brush.linearGradient(
-                                colors = listOf(
-                                    BlossomGlow,
-                                    SoftLavender.copy(alpha = 0.9f),
-                                    MintFoam.copy(alpha = 0.9f)
-                                )
-                            )
-                        } else {
-                            Brush.linearGradient(listOf(Color.Transparent, Color.Transparent))
-                        }
-                    )
+                    .then(previewBackgroundModifier)
             ) {
                 if (previewImage != null) {
                     Image(
@@ -1174,7 +1222,7 @@ private fun TemplateOptionCard(
                         contentScale = ContentScale.Crop,
                         modifier = Modifier.fillMaxSize()
                     )
-                } else {
+                } else if (!isCustomColor) {
                     Column(
                         modifier = Modifier
                             .align(Alignment.Center)
@@ -1204,11 +1252,33 @@ private fun TemplateOptionCard(
                         .border(1.dp, if (selected) CherryPink else Color(0xFFE0D6E6), RoundedCornerShape(999.dp))
                 ) {
                     Text(
-                        text = if (template.isAsset) "Asset" else "Imported",
+                        text = when {
+                            isCustomColor -> "Custom"
+                            template.isAsset -> "Asset"
+                            else -> "Imported"
+                        },
                         modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
                         style = MaterialTheme.typography.labelSmall,
                         color = InkRose
                     )
+                }
+
+                if (isCustomColor && onPickerClick != null) {
+                    OutlinedButton(
+                        onClick = onPickerClick,
+                        modifier = Modifier
+                            .align(Alignment.TopStart)
+                            .padding(10.dp)
+                            .height(30.dp),
+                        shape = CircleShape,
+                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 2.dp),
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            containerColor = Color.White.copy(alpha = 0.88f),
+                            contentColor = InkRose
+                        )
+                    ) {
+                        Text(text = "Picker", style = MaterialTheme.typography.labelSmall)
+                    }
                 }
 
                 if (selected) {
@@ -1231,22 +1301,28 @@ private fun TemplateOptionCard(
 
             Column(
                 modifier = Modifier.padding(14.dp),
-                verticalArrangement = Arrangement.spacedBy(6.dp)
+                verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                Text(
-                    text = template.displayName,
-                    color = InkRose,
-                    style = MaterialTheme.typography.titleSmall
-                )
-                Text(
-                    text = when {
-                        template.backgroundPath != null -> "Background included"
-                        template.overlayPath != null -> "Overlay included"
-                        else -> "Simple color-backed option"
-                    },
-                    color = SoftText,
-                    style = MaterialTheme.typography.bodySmall
-                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(26.dp)
+                            .clip(CircleShape)
+                            .background(previewColor.takeIf { isCustomColor } ?: BlossomGlow)
+                            .border(1.dp, Color(0xFFE0D6E6), CircleShape)
+                    )
+                    Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Text(
+                            text = template.displayName,
+                            color = InkRose,
+                            style = MaterialTheme.typography.titleSmall
+                        )
+                    }
+                }
             }
         }
     }
@@ -1255,24 +1331,25 @@ private fun TemplateOptionCard(
 @Composable
 private fun TemplateColorPickerInline(
     initialColorArgb: Long,
-    onClose: () -> Unit,
-    onColorSelected: (Long) -> Unit
+    onCancel: () -> Unit,
+    onPreviewColorChanged: (Long) -> Unit
 ) {
     val initial = remember(initialColorArgb) {
         FloatArray(3).also { AndroidColor.colorToHSV(initialColorArgb.toInt(), it) }
     }
-    var hue by rememberSaveable(initialColorArgb) { mutableStateOf(initial[0]) }
-    var saturation by rememberSaveable(initialColorArgb) { mutableStateOf(initial[1]) }
-    var shade by rememberSaveable(initialColorArgb) { mutableStateOf(initial[2].coerceIn(0.2f, 1f)) }
+    var hue by remember(initialColorArgb) { mutableStateOf(initial[0]) }
+    var saturation by remember(initialColorArgb) { mutableStateOf(initial[1]) }
+    var shade by remember(initialColorArgb) { mutableStateOf(initial[2].coerceIn(0.2f, 1f)) }
 
-    val selectedColorArgb = remember(hue, saturation, shade) {
-        val current = AndroidColor.HSVToColor(floatArrayOf(hue, saturation, shade))
-        current.toLong() and 0xFFFFFFFFL
+    fun colorArgbFor(h: Float, s: Float, v: Float): Long {
+        return AndroidColor.HSVToColor(floatArrayOf(h, s, v)).toLong() and 0xFFFFFFFFL
     }
+
+    val selectedColorArgb = colorArgbFor(hue, saturation, shade)
 
     Surface(
         shape = RoundedCornerShape(18.dp),
-        color = Color(selectedColorArgb).copy(alpha = 0.14f),
+        color = Color.White.copy(alpha = 0.94f),
         border = BorderStroke(1.dp, Color(0xFFE8DDE8)),
         modifier = Modifier.fillMaxWidth()
     ) {
@@ -1297,7 +1374,7 @@ private fun TemplateColorPickerInline(
                         color = SoftText
                     )
                 }
-                TextButton(onClick = onClose) {
+                TextButton(onClick = onCancel) {
                     Text(text = "Close")
                 }
             }
@@ -1306,7 +1383,9 @@ private fun TemplateColorPickerInline(
                 shape = RoundedCornerShape(16.dp),
                 color = Color.White.copy(alpha = 0.90f),
                 border = BorderStroke(1.dp, Color(0xFFE8DDE8)),
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 220.dp)
             ) {
                 Column(
                     modifier = Modifier.padding(10.dp),
@@ -1326,13 +1405,17 @@ private fun TemplateColorPickerInline(
                                 hue = newHue
                                 saturation = newSaturation
                                 shade = newValue
+                                onPreviewColorChanged(colorArgbFor(newHue, newSaturation, newValue))
                             },
                             modifier = Modifier.weight(1f)
                         )
 
                         VerticalHuePicker(
                             hue = hue,
-                            onHueChange = { hue = it },
+                            onHueChange = {
+                                hue = it
+                                onPreviewColorChanged(colorArgbFor(it, saturation, shade))
+                            },
                             modifier = Modifier.height(170.dp)
                         )
                     }
@@ -1364,31 +1447,18 @@ private fun TemplateColorPickerInline(
                                 )
                             }
                             TextButton(onClick = {
+                                val resetColor = colorArgbFor(
+                                    initial[0],
+                                    initial[1],
+                                    initial[2].coerceIn(0.2f, 1f)
+                                )
                                 hue = initial[0]
                                 saturation = initial[1]
                                 shade = initial[2].coerceIn(0.2f, 1f)
+                                onPreviewColorChanged(resetColor)
                             }) {
                                 Text(text = "Reset")
                             }
-                        }
-                    }
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        TextButton(
-                            onClick = onClose,
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            Text(text = "Cancel")
-                        }
-                        KawaiiPrimaryButton(
-                            text = "Done",
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            onColorSelected(selectedColorArgb)
-                            onClose()
                         }
                     }
                 }
@@ -1410,6 +1480,7 @@ private fun ColorSquarePicker(
         modifier = modifier,
         contentAlignment = Alignment.Center
     ) {
+        val currentHue by rememberUpdatedState(hue)
         val squareSize = if (maxWidth < 160.dp) maxWidth else 160.dp
         val squareSizePx = with(LocalDensity.current) { squareSize.toPx() }
         val indicatorStrokeWidth = with(LocalDensity.current) { 2.dp.toPx() }
@@ -1423,7 +1494,7 @@ private fun ColorSquarePicker(
             val clampedY = position.y.coerceIn(0f, squareSizePx)
             val sat = (clampedX / squareSizePx).coerceIn(0f, 1f)
             val valuePct = (1f - (clampedY / squareSizePx)).coerceIn(0f, 1f)
-            onColorChange(hue, sat, valuePct)
+            onColorChange(currentHue, sat, valuePct)
         }
 
         androidx.compose.foundation.Canvas(

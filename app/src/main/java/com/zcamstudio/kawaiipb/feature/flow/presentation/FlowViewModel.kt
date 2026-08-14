@@ -214,18 +214,51 @@ class FlowViewModel(
     fun addSticker(assetPath: String) {
         _uiState.update { state ->
             val nextId = (state.placedStickers.maxOfOrNull { it.id } ?: 0) + 1
+            val (centerX, centerY) = nextStickerPlacement(state.placedStickers.size)
             state.copy(
                 placedStickers = state.placedStickers + PlacedSticker(
                     id = nextId,
                     assetPath = assetPath,
-                    centerX = 0.5f,
-                    centerY = 0.42f + (state.placedStickers.size * 0.06f).coerceAtMost(0.24f),
+                    centerX = centerX,
+                    centerY = centerY,
                     scale = 1f
                 ),
                 selectedStickerId = nextId,
                 summaryMessage = "Sticker added"
             )
         }
+    }
+
+    private fun nextStickerPlacement(index: Int): Pair<Float, Float> {
+        val positions = listOf(
+            0.28f to 0.30f,
+            0.72f to 0.30f,
+            0.28f to 0.68f,
+            0.72f to 0.68f,
+            0.50f to 0.48f,
+            0.50f to 0.22f,
+            0.50f to 0.74f,
+            0.20f to 0.50f,
+            0.80f to 0.50f
+        )
+
+        val cycle = index / positions.size
+        val (baseX, baseY) = positions[index % positions.size]
+        val nudge = cycle * 0.03f
+
+        val x = (baseX + when {
+            baseX < 0.5f -> -nudge
+            baseX > 0.5f -> nudge
+            else -> 0f
+        }).coerceIn(0.12f, 0.88f)
+
+        val y = (baseY + when {
+            baseY < 0.4f -> -nudge
+            baseY > 0.6f -> nudge
+            else -> 0f
+        }).coerceIn(0.12f, 0.88f)
+
+        return x to y
     }
 
     fun selectSticker(stickerId: Int?) {
@@ -239,8 +272,8 @@ class FlowViewModel(
             val updated = state.placedStickers.map { sticker ->
                 if (sticker.id == stickerId) {
                     sticker.copy(
-                        centerX = centerX.coerceIn(0.08f, 0.92f),
-                        centerY = centerY.coerceIn(0.08f, 0.92f)
+                        centerX = centerX.coerceIn(0.05f, 0.95f),
+                        centerY = centerY.coerceIn(0.05f, 0.95f)
                     )
                 } else {
                     sticker
@@ -254,7 +287,7 @@ class FlowViewModel(
         _uiState.update { state ->
             val updated = state.placedStickers.map { sticker ->
                 if (sticker.id == stickerId) {
-                    sticker.copy(scale = scale.coerceIn(0.45f, 2.4f))
+                    sticker.copy(scale = scale.coerceIn(0.45f, 3.5f))
                 } else {
                     sticker
                 }

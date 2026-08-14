@@ -54,7 +54,7 @@ fun stripSizePreviewAssetPath(size: StripSize): String = when (size) {
 private const val StickerBaseHeightRatio = 0.125f
 
 fun stickerBaseHeightPx(containerHeightPx: Float, scale: Float = 1f): Float {
-    val boundedScale = scale.coerceIn(0.45f, 2.4f)
+    val boundedScale = scale.coerceIn(0.45f, 3.5f)
     return (containerHeightPx * StickerBaseHeightRatio * boundedScale).coerceAtLeast(24f)
 }
 
@@ -64,17 +64,23 @@ fun stickerRenderRectPx(
     containerWidthPx: Float,
     containerHeightPx: Float,
     aspectRatio: Float,
-    scale: Float = 1f
+    scale: Float = 1f,
+    rotationDegrees: Float = 0f
 ): android.graphics.RectF {
     val boundedContainerWidth = containerWidthPx.coerceAtLeast(1f)
     val boundedContainerHeight = containerHeightPx.coerceAtLeast(1f)
     val boxHeightPx = stickerBaseHeightPx(boundedContainerHeight, scale)
     val boxWidthPx = (boxHeightPx * aspectRatio).coerceAtLeast(56f)
-    val boundedCenterX = centerX.coerceIn(0f, 1f) * boundedContainerWidth
-    val boundedCenterY = centerY.coerceIn(0f, 1f) * boundedContainerHeight
-    val left = (boundedCenterX - boxWidthPx / 2f).coerceIn(0f, (boundedContainerWidth - boxWidthPx).coerceAtLeast(0f))
-    val top = (boundedCenterY - boxHeightPx / 2f).coerceIn(0f, (boundedContainerHeight - boxHeightPx).coerceAtLeast(0f))
-    return android.graphics.RectF(left, top, left + boxWidthPx, top + boxHeightPx)
+    val rotationRadians = Math.toRadians(rotationDegrees.toDouble())
+    val cosTheta = kotlin.math.abs(kotlin.math.cos(rotationRadians)).toFloat()
+    val sinTheta = kotlin.math.abs(kotlin.math.sin(rotationRadians)).toFloat()
+    val rotatedWidthPx = (boxWidthPx * cosTheta + boxHeightPx * sinTheta).coerceAtLeast(56f)
+    val rotatedHeightPx = (boxWidthPx * sinTheta + boxHeightPx * cosTheta).coerceAtLeast(24f)
+    val centerXPx = centerX * boundedContainerWidth
+    val centerYPx = centerY * boundedContainerHeight
+    val left = centerXPx - rotatedWidthPx / 2f
+    val top = centerYPx - rotatedHeightPx / 2f
+    return android.graphics.RectF(left, top, left + rotatedWidthPx, top + rotatedHeightPx)
 }
 
 fun stripSizeLayoutAssetPath(size: StripSize): String = when (size) {

@@ -1,49 +1,61 @@
 # KawaiiPB
 
-Last updated: 2026-08-12
+Last updated: 2026-08-15
 
-[![Android CI](https://github.com/Zcamaya/zcamstudio-kawaii-pb/actions/workflows/android.yml/badge.svg)](https://github.com/Zcamaya/zcamstudio-kawaii-pb/actions/workflows/android.yml)
+KawaiiPB is an Android kiosk-style photo booth app built with Kotlin and Jetpack Compose. The app currently centers on a guided flow for session startup, camera capture, photo assignment, strip layout selection, preview, printing, and admin configuration.
 
-KawaiiPB is an Android kiosk-style photo booth app built with Kotlin and Jetpack Compose. The current flow covers landing, camera capture, photo assignment, template selection, preview/print preparation, and admin access.
+## Current project status
 
-## Current Flow
+The project is currently in an active feature-refactor state. The most recent verification performed in this workspace was:
 
-1. Landing screen opens the kiosk session.
-2. User selects a camera mode and captures photos.
-3. Photo assignment stage places captured photos into the strip layout.
-4. Template tab lets the user choose a backdrop or template asset.
-5. Preview and print stages reuse the same layout data for output.
-6. Admin mode provides PIN-protected access to management actions.
+- `./gradlew.bat :app:compileDebugKotlin` -> successful
 
-## Key Features
+This confirms the current app builds in its present state, although the flow feature remains the highest-risk area for behavior changes during refactoring.
+
+## Current flow
+
+1. Landing screen starts a new kiosk session.
+2. User chooses a camera mode.
+3. Capture stage records photo frames.
+4. Photo assignment stage maps captured photos to layout slots.
+5. Strip layout and template selection are applied to the selected output.
+6. Preview and print stages render the final sheet and save output.
+7. Admin route exposes timer and camera configuration actions.
+
+## Key features
 
 - Jetpack Compose UI
-- Camera capture using CameraX
-- Guided multi-step kiosk flow
+- CameraX capture flow
+- Multi-stage kiosk session flow
 - Photo assignment and strip layout selection
-- Template selection with asset-backed manifests
-- Drawing/sticker support where enabled by the flow
-- Admin dashboard with PIN validation
+- Template overlay handling from asset and external directories
+- Sticker and transform editing in the assignment flow
 - Local storage and session logging
+- Admin dashboard for timer and camera settings
 
-## Project Structure
+## Project structure
 
 - `app/` - Android application module
 - `app/src/main/java/com/zcamstudio/kawaiipb/` - app source packages
 - `app/src/main/res/` - Android resources
-- `app/src/main/assets/` - template and layout JSON assets
-- `docs/json-schemas/` - markdown source docs for the JSON formats used by the app
+- `app/src/main/assets/` - template and layout assets
+- `docs/json-schemas/` - JSON format documentation
 - `build.gradle.kts` - top-level Gradle configuration
 - `settings.gradle.kts` - project module settings
 
-## Requirements
+## Architecture snapshot
 
-- Android SDK 36
-- Java 11
-- Gradle wrapper included in the repository
-- Android device or emulator with camera support for the capture flow
+This project follows a feature-first organization, not a strict Clean Architecture layout. The app is organized around:
 
-## Build, Run, and Debug
+- `feature/*` for screen-specific logic
+- `domain/*` for model and use-case contracts
+- `data/*` for in-memory data access
+- `services/*` for storage and logging
+- `core/designsystem/*` for shared Compose UI components
+
+The flow feature is the main source of complexity and the most likely refactor target.
+
+## Build and run
 
 From the project root on Windows:
 
@@ -52,48 +64,27 @@ cd "d:\My Program\KawaiiPB"
 .\gradlew.bat :app:assembleDebug
 ```
 
-To install the debug build on a connected device or emulator:
+If you want to just validate compilation:
 
 ```powershell
-.\gradlew.bat :app:installDebug
+.\gradlew.bat :app:compileDebugKotlin
 ```
 
-To run unit tests:
+## Important docs
 
-```powershell
-.\gradlew.bat :app:testDebugUnitTest
-```
-
-Useful debug checks when a change touches the flow UI or templates:
-
-- `.\gradlew.bat :app:compileDebugKotlin`
-- Review Logcat in Android Studio for flow crashes or asset-loading failures
-- Confirm the template and layout JSON files still resolve from `app/src/main/assets/`
-
-## Continuous Integration
-
-This repository includes a GitHub Actions workflow at `.github/workflows/android.yml`.
-
-- Builds the `app` module with `assembleDebug`
-- Runs `:app:testDebugUnitTest`
-
-## JSON Format Docs
-
-- [Template manifest schema](docs/json-schemas/template.schema.md)
-- [Layout manifest format](docs/json-schemas/layout-manifest.md)
+- [Architecture overview](ARCHITECTURE.md)
+- [System structure](SYSTEM_STRUCTURE.md)
+- [Requirements](REQUIREMENTS.md)
+- [Roadmap](ROADMAP.md)
+- [JSON schema docs](docs/json-schemas/README.md)
 
 ## Notes
 
-- The app uses local repository and storage services for kiosk flow data.
-- Camera permission is declared in `app/src/main/AndroidManifest.xml`.
-- The UI is styled with a custom Material3 theme.
-
-## Getting Started
-
-1. Open the project in Android Studio.
-2. Let Gradle sync and confirm the Android SDK is installed.
-3. Build and run the `app` module on a device or emulator.
+- App permissions are handled in `KawaiiPbApp.kt` for storage/media access.
+- The navigation graph is defined in `navigation/KawaiiNavHost.kt`.
+- The flow stage and screen logic are concentrated in the `feature/flow/presentation` package.
+- Template and layout JSON contracts are documented in the docs folder and should stay aligned with the actual asset files.
 
 ## License
 
-No license file is included in this repository. Add a `LICENSE` file to declare project licensing and maintainers.
+No license file is currently included in this repository.

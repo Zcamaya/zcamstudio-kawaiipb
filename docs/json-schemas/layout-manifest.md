@@ -1,43 +1,43 @@
 # Layout Manifest Format
 
-Last updated: 2026-08-12
+Last updated: 2026-08-15
 
-KawaiiPB layout files define the printable/previewable geometry used by the kiosk flow.
+KawaiiPB layout files define the printable geometry used by the photo assignment and final print flow.
 
-These files are JSON manifests stored in:
+These files live in:
 
 - `app/src/main/assets/layouts/`
 
 ## Status
 
-This format is app-defined rather than a separate JSON Schema file. The app currently treats these JSON files as structured layout manifests.
+This is an app-defined layout manifest format, not a separate formal JSON Schema file. The layout JSON is parsed by the app and used to determine slot positions and output geometry.
 
-## Common Fields
+## Common fields
 
 ### `version`
 
 - Type: integer
-- Purpose: format version for future compatibility.
+- Purpose: format version marker for compatibility
 
 ### `layoutId`
 
 - Type: string
-- Purpose: stable identifier for the layout.
+- Purpose: stable identifier for the layout
 
 ### `layoutName`
 
 - Type: string
-- Purpose: user-facing layout title.
+- Purpose: user-facing layout title
 
 ### `layoutType`
 
 - Type: string
-- Purpose: internal type key used by the app when selecting a layout.
+- Purpose: app internal type used when selecting a layout
 
 ### `paper`
 
-- Object describing the rendered print canvas.
-- Common fields:
+- Object describing the canvas dimensions and orientation
+- Typical fields:
   - `width`
   - `height`
   - `unit`
@@ -46,8 +46,8 @@ This format is app-defined rather than a separate JSON Schema file. The app curr
 
 ### `output`
 
-- Object describing the output strip dimensions.
-- Common fields:
+- Object describing the print output geometry
+- Typical fields:
   - `doubleStrip`
   - `stripWidth`
   - `stripHeight`
@@ -55,12 +55,12 @@ This format is app-defined rather than a separate JSON Schema file. The app curr
 ### `backgroundImage`
 
 - Type: string
-- Purpose: relative path to the background artwork used for previews and printing.
+- Purpose: relative path to the background image used by the layout
 
 ### `render`
 
-- Object describing how photos are rendered into the layout.
-- Common fields:
+- Object describing general render settings
+- Typical fields:
   - `backgroundColor`
   - `photoFit`
   - `photoShape`
@@ -69,24 +69,16 @@ This format is app-defined rather than a separate JSON Schema file. The app curr
 
 ### `safeArea`
 
-- Object describing margins around the printable area.
-- Common fields:
-  - `left`
-  - `top`
-  - `right`
-  - `bottom`
+- Object describing margins around the printable area
 
 ### `brandingArea`
 
-- Object describing an optional branding region.
-- Common fields:
-  - `enabled`
-  - `height`
+- Optional object describing an area reserved for branding output
 
 ### `slots`
 
-- Array of photo slot definitions.
-- Each slot commonly includes:
+- Array of photo slot definitions
+- Typical fields per slot:
   - `id`
   - `strip`
   - `x`
@@ -120,8 +112,8 @@ This format is app-defined rather than a separate JSON Schema file. The app curr
 }
 ```
 
-## Current App Behavior
+## Current app behavior
 
-- The flow loads layouts from assets for the photo assignment and final preview stages.
-- The layout defines the slot geometry used for photo placement and transformations.
-- The print composer uses the same layout data to build the final output.
+- Layout files are resolved from `app/src/main/assets/layouts/` and used by the flow stage.
+- The selected layout defines the slot geometry used throughout assignment and preview.
+- The print composer uses the same geometry to build final output.

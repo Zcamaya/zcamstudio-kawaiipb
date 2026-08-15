@@ -1,24 +1,24 @@
-# KawaiiPB Project Structure and Architecture
+# KawaiiPB Architecture
 
-Last updated: 2026-08-12
+Last updated: 2026-08-15
 
 ## Overview
 
-KawaiiPB is an Android application built with Kotlin and Jetpack Compose. The project uses a feature-oriented, layered structure that keeps the UI, state, domain logic, and data access separated enough to be maintainable while still being practical for kiosk-style flow work.
+KawaiiPB is a feature-first Android app built with Kotlin and Jetpack Compose. It is organized around a kiosk session flow rather than a strict layered architecture, and the flow layer is the main area of complexity.
 
-## Architectural Style
+## Architectural style
 
-The app follows a hybrid approach:
+The app currently follows a pragmatic hybrid structure:
 
-- Feature-first organization
-- Compose-based UI layer
-- ViewModel-driven state management
-- Repository abstraction for data access
-- Domain models and helper functions for business logic
+- Compose-based UI
+- ViewModel-driven state updates
+- Domain models and use cases for app logic
+- Repository abstraction for app configuration and dashboard data
+- Storage and logging services for file and session IO
 
-This is not a strict Clean Architecture setup, but it is organized to support incremental refactoring.
+This is not a strict Clean Architecture app, but it is structured well enough for incremental refactoring without a full rewrite.
 
-## Main Project Structure
+## Main project structure
 
 ```text
 app/
@@ -32,129 +32,81 @@ app/
         feature/
         navigation/
         services/
-        ui/
       assets/
       res/
 ```
 
-## Key Folders
+## Layer responsibilities
 
-### app/
-Application entry points and top-level app wiring.
+### App bootstrapping
 
-- `KawaiiPbApp.kt`: app-level initialization
-- `MainActivity.kt`: activity hosting the Compose app
+- `KawaiiPbApp.kt` sets up dependencies and handles permission gating.
+- `MainActivity.kt` hosts the Compose content.
+- `KawaiiPbDependencies.kt` wires repository, storage, logging, and use case dependencies.
 
-### core/
-Shared infrastructure and reusable foundation pieces.
+### Navigation
 
-- `core/designsystem/`: reusable Compose UI components, theme, colors, buttons, cards
-- `core/viewmodel/`: shared ViewModel utilities or base patterns
+- `navigation/KawaiiNavHost.kt` manages route transitions between landing, flow, and admin screens.
 
-### domain/
-Business/domain layer.
+### Feature layer
 
-- `domain/model/`: core models such as flow state, templates, layouts, stickers
-- `domain/repository/`: repository interfaces
-- `domain/usecase/`: use cases or business logic units
-
-### data/
-Data implementation layer.
-
-- `data/repository/`: concrete repository implementations
-- the current flow uses local/in-memory data sources for the prototype and kiosk session state
-
-### feature/
-Feature-based UI modules.
-
-- `feature/landing/`: landing screen experience
-- `feature/flow/`: kiosk flow experience, stage UI, ViewModel, and helpers
-- `feature/admin/`: admin experience
-- `feature/printing/`: print composition and output helpers
-
-### navigation/
-Navigation graph and app routing.
-
-- `navigation/KawaiiNavHost.kt`
-
-### services/
-Cross-cutting services.
-
-- `services/storage/`: storage service implementations
-- `services/logging/`: session logging services
-
-## How the App Is Organized
-
-### Presentation layer
-The UI is built with Jetpack Compose and lives in feature-specific presentation files.
-
-Examples:
-- `app/src/main/java/com/zcamstudio/kawaiipb/feature/flow/presentation/FlowScreen.kt`
-- `app/src/main/java/com/zcamstudio/kawaiipb/feature/flow/presentation/FlowStageSections.kt`
-- `app/src/main/java/com/zcamstudio/kawaiipb/feature/flow/presentation/FlowAssignmentSections.kt`
-
-### State layer
-ViewModels manage UI state and flow events.
-
-Example:
-- `app/src/main/java/com/zcamstudio/kawaiipb/feature/flow/presentation/FlowViewModel.kt`
+- `feature/landing/` manages entry and admin unlock behavior.
+- `feature/flow/` owns the kiosk flow, capture, assignment, preview, and print process.
+- `feature/admin/` owns admin configuration views and summary data.
+- `feature/printing/` owns final print rendering and bitmap composition.
 
 ### Domain layer
-Domain models and interfaces define the app concepts.
 
-Example:
-- `app/src/main/java/com/zcamstudio/kawaiipb/domain/model/`
+- `domain/model/` contains app entities such as strip layouts, camera mode, template metadata, and kiosk state models.
+- `domain/repository/` contains repository contracts.
+- `domain/usecase/` contains app-level use cases.
 
 ### Data layer
-Repositories provide concrete data access implementations.
 
-Example:
-- `app/src/main/java/com/zcamstudio/kawaiipb/data/repository/`
+- `data/repository/InMemoryKioskRepository.kt` provides the current concrete repository implementation.
 
-## Typical Flow
+### Services
 
-1. User interacts with a Compose screen.
-2. The screen sends callbacks or ViewModel actions.
-3. The ViewModel updates state.
-4. Compose re-renders from state.
-5. Services and repositories provide file, session, and asset data as needed.
+- `services/storage/KawaiiStorageService.kt` handles local media, export paths, and public folder setup.
+- `services/logging/SessionLogService.kt` records session activity for debugging and auditing.
 
-## Current Flow Notes
+### Shared UI
 
-The active kiosk flow is centered around:
+- `core/designsystem/` contains reusable Material3 design tokens and presentational helpers.
+- `core/viewmodel/` contains shared ViewModel utilities when needed.
 
-- landing and session entry
-- camera capture
-- photo assignment
-- template selection and backdrop control
-- preview and print preparation
-- admin access
+## Runtime flow
 
-The template tab currently combines template selection with an embedded custom color experience, so layout/docs should be kept in sync with that UI behavior.
+1. `MainActivity` launches the app.
+2. `KawaiiPbApp` requests required media/storage permission if needed.
+3. `KawaiiNavHost` starts at the landing screen.
+4. User actions update the relevant ViewModel.
+5. The ViewModel updates state and emits effects when screens need navigation.
+6. Services provide storage, session logging, and rendering support.
 
-## Strengths of the Current Structure
+## Main risk area
 
-- Clear feature separation
-- Reusable design system components
-- Easier maintenance than a single-screen app
-- Good fit for incremental refactoring
+The `feature/flow` package is the most complex area in the codebase. It combines:
 
-## Current Refactoring Focus
+- capture timing
+- photo assignment state
+- strip layout selection
+- template overlay selection
+- sticker and transform editing
+- print rendering
+- session timer behavior
 
-The current cleanup work is focused on:
+Because of this, the flow feature is the logical candidate for refactoring, but it is also the highest-risk surface for regressions.
 
-- reducing screen complexity
-- extracting repeated UI logic into smaller composables
-- keeping flow state and UI easier to navigate
-- preserving app behavior and layout
+## Documentation alignment
 
-## Most Important Files
+The JSON schema docs under `docs/json-schemas/` should remain aligned with the actual asset files in `app/src/main/assets/templates` and `app/src/main/assets/layouts`.
 
-- `app/src/main/java/com/zcamstudio/kawaiipb/MainActivity.kt`
-- `app/src/main/java/com/zcamstudio/kawaiipb/KawaiiPbApp.kt`
-- `app/src/main/java/com/zcamstudio/kawaiipb/navigation/KawaiiNavHost.kt`
-- `app/src/main/java/com/zcamstudio/kawaiipb/feature/flow/presentation/FlowScreen.kt`
-- `app/src/main/java/com/zcamstudio/kawaiipb/feature/flow/presentation/FlowViewModel.kt`
-- `app/src/main/java/com/zcamstudio/kawaiipb/core/designsystem/`
-- `app/src/main/java/com/zcamstudio/kawaiipb/domain/model/`
-- `app/src/main/java/com/zcamstudio/kawaiipb/data/repository/`
+## Current recommendation
+
+For the next refactor, keep the project architecture incremental:
+
+- split stage-specific UI into smaller composables
+- isolate pure state transitions from UI logic
+- keep file and print IO in service boundaries
+- preserve the current flow contracts until tests cover the behavior

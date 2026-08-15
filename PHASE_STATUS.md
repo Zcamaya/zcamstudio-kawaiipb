@@ -1,44 +1,53 @@
 # Phase Status
 
-Last updated: 2026-08-12
+Last updated: 2026-08-15
 
-## Completed
+## Verified status
 
-### Phase 2. Architecture Refactoring
+The project was verified with:
 
-- Split the largest flow presentation responsibilities into focused files
-- Added shared helpers for flow state and stage logic
-- Reduced `FlowScreen.kt` from a monolith to a coordinator-style file
+- `./gradlew.bat :app:compileDebugKotlin` -> successful
 
-### Phase 3. Performance Improvements
+This is the current project health check available in this workspace. It confirms that the app compiles in its current state.
 
-- Added bitmap caching for frequently reused Compose previews
-- Added prepared-photo caching for print rendering
-- Kept behavior unchanged and verified with unit tests
+## Current focus areas
 
-### Phase 4. Code Cleanup
+### Flow feature cleanup
 
-- Removed commented legacy blocks from `FlowScreen.kt`
-- Moved reusable editor and preview helpers into `FlowSharedSections.kt`
-- Reduced `FlowScreen.kt` to the active screen/wiring code only
+The main active area is the kiosk flow in `feature/flow/presentation`.
 
-## Current State
+Current concerns:
 
-- The app builds successfully
-- Unit tests pass
-- The flow presentation layer is now more modular
-- Markdown docs now include current flow and JSON format references
+- large state model in `FlowUiState.kt`
+- dense transition logic in `FlowViewModel.kt`
+- multiple stage-specific actions concentrated in a few files
+- higher regression risk around capture, assignment, and print behavior
 
-## Next Recommended Work
+### Print and asset pipelines
 
-1. Phase 5: UI improvements
-2. Phase 6: Feature improvements
-3. Phase 7: Future scalability work
+The app is also actively relying on:
 
-## Files Added During Refactor
+- `feature/printing/` render helpers
+- asset template discovery logic
+- layout JSON resolution from `app/src/main/assets/layouts`
 
-- `app/src/main/java/com/zcamstudio/kawaiipb/feature/flow/presentation/FlowStageSections.kt`
-- `app/src/main/java/com/zcamstudio/kawaiipb/feature/flow/presentation/FlowCaptureSections.kt`
-- `app/src/main/java/com/zcamstudio/kawaiipb/feature/flow/presentation/FlowAssignmentSections.kt`
-- `app/src/main/java/com/zcamstudio/kawaiipb/feature/flow/presentation/FlowSharedSections.kt`
-- `app/src/main/java/com/zcamstudio/kawaiipb/feature/flow/presentation/FlowViewModelSupport.kt`
+These are important to keep in sync with the UI flow and JSON schema docs.
+
+### Admin and configuration
+
+Admin flow and timer configuration are present and working as feature-level entries, but they should be reviewed when the flow logic is refactored to ensure the same configuration values remain intact.
+
+## Recommended next steps
+
+1. Reduce the complexity of the flow state model.
+2. Split stage-specific logic into smaller, isolated composables.
+3. Add targeted regression checks around capture and photo assignment.
+4. Keep the JSON schema documentation aligned with actual asset files.
+5. Only after that, consider broader architectural cleanup.
+
+## Current status summary
+
+- Build status: verified compile success
+- Main refactor target: flow feature and state model
+- Highest risk: behavior regressions in capture, layout, and print flow
+- Lowest-risk improvement: document cleanup and contract alignment

@@ -1,12 +1,12 @@
 # KawaiiPB System Structure
 
-Last updated: 2026-08-12
+Last updated: 2026-08-15
 
 ## Purpose
 
-KawaiiPB is an Android kiosk application for a guided photo booth workflow. The app combines camera capture, photo assignment, template selection, preview, printing, and admin access in one Compose-based experience.
+KawaiiPB is a Compose-based Android kiosk app for guided photo booth sessions. It currently combines camera capture, assignment, template handling, preview, printing, and admin configuration in a single app flow.
 
-## Top-Level Layout
+## Top-level layout
 
 ```text
 app/
@@ -20,82 +20,70 @@ app/
         feature/
         navigation/
         services/
-        ui/
-      res/
       assets/
-    test/
+      res/
 docs/
   json-schemas/
 ```
 
-## Main Subsystems
+## Main subsystems
 
-### App Bootstrap
+### App bootstrap
 
-- `MainActivity.kt`: launches the Compose app
-- `KawaiiPbApp.kt`: app root and dependency wiring
+- `MainActivity.kt` hosts the Compose app.
+- `KawaiiPbApp.kt` handles permission gating and dependency wiring.
+- `app/KawaiiPbDependencies.kt` provides the shared application dependencies to screens and ViewModels.
 
 ### Navigation
 
-- `navigation/KawaiiNavHost.kt`: route selection and screen switching
+- `navigation/KawaiiNavHost.kt` controls the landing, flow, and admin routes.
 
-### Feature Layer
+### Feature layer
 
-- `feature/landing/`: landing and session entry
-- `feature/flow/`: kiosk flow, stage UI, flow ViewModel, and helpers
-- `feature/printing/`: print composition and print pipeline helpers
-- `feature/admin/`: admin dashboard and PIN workflow
+- `feature/landing/` handles landing and admin unlock flow.
+- `feature/flow/` contains the kiosk flow state and UI.
+- `feature/admin/` contains admin configuration screens.
+- `feature/printing/` generates print output and render assets.
 
-### Domain Layer
+### Domain layer
 
-- `domain/model/`: core business entities and UI state models
-- `domain/repository/`: repository contracts
-- `domain/usecase/`: business actions and data access orchestration
+- `domain/model/` contains shared models.
+- `domain/repository/` defines repository contracts.
+- `domain/usecase/` defines app use cases.
 
-### Data Layer
+### Data layer
 
-- `data/repository/`: concrete repository implementations
-- currently the app uses lightweight local/in-memory data sources
+- `data/repository/` contains the concrete in-memory repository implementation.
 
 ### Services
 
-- `services/storage/`: file and session storage helpers
-- `services/logging/`: session logging and event tracking
+- `services/storage/` handles file access, export destinations, and persistent settings.
+- `services/logging/` records session events.
 
-### Core UI
+### Shared UI
 
-- `core/designsystem/`: reusable Compose theme, colors, buttons, cards, and layout components
-- `core/viewmodel/`: shared ViewModel utilities if needed by multiple features
+- `core/designsystem/` contains reusable Compose UI and theme building blocks.
+- `core/viewmodel/` contains viewmodel utilities when needed.
 
-## Runtime Flow
+## Relevant flow files
 
-1. The app starts in `MainActivity`.
-2. `KawaiiPbApp` wires dependencies and theme.
-3. `KawaiiNavHost` chooses the active screen.
-4. Feature screens render state from their ViewModels.
-5. User actions update state through callbacks or ViewModel methods.
-6. Services and repositories provide storage, logging, and domain data.
+The central flow implementation is currently spread across these files:
 
-## Current File Ownership
+- `feature/flow/presentation/FlowScreen.kt` - screen coordinator
+- `feature/flow/presentation/FlowUiState.kt` - state model
+- `feature/flow/presentation/FlowViewModel.kt` - flow logic and transitions
+- `feature/flow/presentation/FlowStageSections.kt` - stage-specific UI
+- `feature/flow/presentation/FlowCaptureSections.kt` - capture UI
+- `feature/flow/presentation/FlowAssignmentSections.kt` - assignment flow
+- `feature/flow/presentation/FlowSharedSections.kt` - shared flow widgets
+- `feature/flow/presentation/FlowPresentationHelpers.kt` - helper logic
 
-- `FlowScreen.kt`: coordinator for the kiosk flow UI
-- `FlowViewModel.kt`: flow state and transitions
-- `FlowPresentationHelpers.kt`: shared flow presentation utilities
-- `FlowStageSections.kt`: stage-specific flow screens
-- `FlowCaptureSections.kt`: camera capture UI
-- `FlowAssignmentSections.kt`: photo assignment, template selection, and custom color UI
-- `FlowSharedSections.kt`: reusable flow preview/editor widgets
-- `FlowViewModelSupport.kt`: shared flow ViewModel helper functions
+## Asset contracts
 
-## JSON Format Docs
+- `app/src/main/assets/templates/` contains template manifest assets.
+- `app/src/main/assets/layouts/` contains layout definition JSON and image assets.
+- `docs/json-schemas/` documents the app-defined JSON formats.
 
-- `docs/json-schemas/template.schema.md`
-- `docs/json-schemas/layout-manifest.md`
+## Current structural goal
 
-## Structural Goals
-
-- Keep feature code inside feature packages
-- Keep shared UI in `core/designsystem`
-- Keep business rules in `domain`
-- Keep storage and logging behind small service boundaries
-- Avoid single files accumulating unrelated responsibilities
+The project is currently aimed at preserving the working flow while reducing complexity in the feature layer. The main goal is to keep the `flow` feature easier to understand and safer to refactor without breaking capture, assignment, or print behavior.

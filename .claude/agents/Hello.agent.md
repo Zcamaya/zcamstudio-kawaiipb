@@ -1,5 +1,7 @@
 # Hello.agent
 
-Last updated: 2026-08-12
+Last updated: 2026-08-15
 
-This agent file was empty. It is reserved for lightweight notes or agent configuration related to the workspace.
+This agent file is reserved for workspace-local notes or custom agent instructions.
+
+Current status: no custom agent instructions are active for this workspace yet.

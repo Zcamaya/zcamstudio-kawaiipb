@@ -1,84 +1,66 @@
 # KawaiiPB Requirements
 
-Last updated: 2026-08-12
+Last updated: 2026-08-15
 
-## Functional Requirements
+## Functional requirements
 
-### App Flow
+### Session flow
 
-- The app must support a kiosk-style guided session
-- The user must be able to choose a camera mode
-- The app must support live camera capture
-- The app must support photo assignment after capture
-- The app must support strip size selection
-- The app must support template selection
-- The app must support drawing and sticker placement
-- The app must support preview before printing
-- The app must support printing/exporting the final result
-- The app must support QR-based session completion/download flow
-- The template tab must support selecting a template and a custom backdrop without breaking the flow
-- The custom color picker experience must remain embedded in the template flow when enabled
+- The app should support a kiosk-style guided photo booth session.
+- The user should be able to choose a camera mode.
+- Captured frames should be saved for assignment and print composition.
+- The flow should support photo assignment into strip slots.
+- The user should be able to select a strip layout and template overlay.
+- Sticker and transform editing should remain available in the assignment flow.
+- The app should support preview and print output generation.
+- Admin mode should still expose timer and camera configuration options.
 
-### Admin Flow
+### Admin flow
 
-- The app must support admin entry
-- The app must validate the admin PIN
-- The app must allow access to session or app management actions from admin mode
+- Admin entry should remain available from the landing screen flow.
+- Configurable timer values should be persisted through storage settings.
+- Camera selections should persist per mode.
 
-### Storage and Session Behavior
+### Storage behavior
 
-- Captured photos must be saved locally
-- Print output must be saved locally
-- Session logging must persist important events
-- The app must keep flow state per session
+- Captured content and exports should be saved into app-managed folders and public export destinations when available.
+- Session logs should be stored locally for debugging.
+- Asset loading must remain resilient when files are missing or unavailable.
 
-## Technical Requirements
+## Technical requirements
 
-- Android app built with Kotlin
-- UI must use Jetpack Compose
-- Camera capture must use CameraX
-- Local file IO must be supported for capture and print assets
-- JSON layout/template data must be loadable from assets
-- Markdown documentation should describe the supported JSON formats and current flow
-- The app must compile and run with the configured Android SDK
+- Android app built with Kotlin.
+- Jetpack Compose used for the UI layer.
+- CameraX used for capture flow behavior.
+- Local file access used for output and session resources.
+- JSON-based layout and template metadata should remain aligned with asset files.
 
-## Environment Requirements
+## Environment requirements
 
-- Android Studio or compatible IDE
-- Android SDK installed
-- Java runtime compatible with the project Gradle setup
-- Device or emulator with camera support for capture flow
+- Android Studio or equivalent IDE
+- Android SDK configured for the project
+- Java version compatible with the Gradle setup
+- Device or emulator with camera support for capture validation
 
-## Build Requirements
+## Current build requirement
 
-- Debug build must succeed
-- Unit tests must pass
-- Gradle wrapper must be usable from the repository
+The project is expected to compile successfully with the configured Gradle wrapper and Android tooling. Current verification in this workspace:
 
-## Quality Requirements
+- `./gradlew.bat :app:compileDebugKotlin` -> successful
 
-- Changes must not break the current kiosk flow
-- UI updates must preserve the current visual identity unless explicitly changed
-- Refactoring must be behavior-preserving
-- Shared helpers should be reused instead of duplicated
+## Quality requirements
 
-## Performance Requirements
+- Refactors should preserve current flow behavior unless explicitly changed.
+- Shared UI should remain reusable across screens.
+- Storage and print operations should remain isolated behind service boundaries.
+- Flow changes should be validated on a device or emulator because behavior is UI-sensitive.
 
-- Camera preview should remain responsive
-- Bitmap loading should avoid unnecessary repeated decoding
-- Print composition should avoid redundant image preparation
-- Compose UI should minimize avoidable recomposition and layout churn
+## Recommended validation checklist
 
-## Security and Safety Requirements
+Before finalizing a refactor or feature change, validate:
 
-- Camera permission must be handled explicitly
-- File access must stay local and predictable
-- Bitmap and asset loading must fail safely
-- Session data should not expose secrets
-
-## Testing Requirements
-
-- Unit tests should cover helper logic where practical
-- Refactors should be verified with `:app:testDebugUnitTest`
-- Changes affecting IO or rendering should be checked for regressions
-- Flow UI changes should be checked on a device or emulator because the template and color picker experience is layout-sensitive
+- capture flow still records frames correctly
+- assignment transforms still update the correct slot
+- template/layout path resolution still works
+- print output still renders successfully
+- admin settings still persist and reload as expected

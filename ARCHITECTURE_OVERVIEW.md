@@ -1,93 +1,81 @@
 # KawaiiPB Architecture Overview
 
-Last updated: 2026-08-12
+Last updated: 2026-08-15
 
 ## Summary
 
-KawaiiPB uses a feature-first, Compose-driven architecture with a thin UI coordinator, ViewModel state management, domain models, and small service/repository boundaries.
+KawaiiPB is a feature-oriented Android app that uses Jetpack Compose and a ViewModel-driven flow for the photo booth session. The current architecture is intentionally practical: it separates user-facing screens from app services and domain models without enforcing a deep Clean Architecture layer boundary.
 
-## Architectural Style
+## Architectural style
 
-- Presentation layer built with Jetpack Compose
-- ViewModel-driven state and event handling
-- Domain models for kiosk flow state
-- Repository abstraction for data access
-- Service layer for storage, logging, and file IO
+- Feature-first package organization
+- Compose UI for the screen layer
+- ViewModels for state and event flow
+- Repository contracts and use cases for app logic
+- Services for storage, logging, and print output
 
-This is a pragmatic layered architecture rather than a strict Clean Architecture implementation.
-
-## High-Level Data Flow
+## High-level data flow
 
 ```mermaid
 flowchart TD
     UI["Compose Screens"] --> VM["ViewModels"]
-    VM --> Domain["Domain Models / Helpers"]
-    VM --> Services["Storage / Logging / Printing Services"]
+    VM --> Domain["Domain Models / Use Cases"]
+    VM --> Services["Storage / Logging / Printing"]
     Domain --> Repo["Repository Layer"]
-    Repo --> Data["Concrete Data Sources"]
-    Services --> FS["Files / Local Storage"]
+    Repo --> Data["In-memory Data Sources"]
+    Services --> Files["Local media and export folders"]
 ```
 
-## Flow System Architecture
+## Main feature groups
 
-### Presentation
+### Presentation layer
 
-- `FlowScreen.kt` routes stage content and user actions
-- Extracted stage files hold focused composables
-- Shared helpers provide layout previews and reusable UI controls
+- `feature/landing/` contains landing and admin unlock flows.
+- `feature/flow/` contains the kiosk flow and assignment logic.
+- `feature/admin/` contains admin dashboard and settings screens.
+- `feature/printing/` contains final render and export logic.
 
-### State
+### State layer
 
-- `FlowViewModel.kt` owns the kiosk flow state machine
-- `FlowUiState` is the single source of truth for the screen
-- User intent is expressed as callbacks and ViewModel actions
+- `FlowViewModel.kt` owns the main state transitions for the kiosk flow.
+- `FlowUiState.kt` is the central model for stage and user state.
+- `FlowScreen.kt` is a coordinator that connects state to stage-specific composables.
 
-### Data and Services
+### Service layer
 
-- `KawaiiStorageService` manages capture files, exports, and print file paths
-- `SessionLogService` records key session events
-- Printing helpers build print-ready output from captured frames and templates
+- `KawaiiStorageService` handles save paths, export files, and public folder initialization.
+- `SessionLogService` records session events for diagnostics.
+- `PrintComposer` and related helpers produce the final render output.
 
-## Rendering Pipeline
+## Flow responsibilities
 
-1. Screen receives state from the ViewModel.
-2. Compose reads the current state and selects the active stage UI.
-3. Stage composables render camera, assignment, templates, preview, or print status.
-4. Image helpers decode photos and assets when needed.
-5. Print helpers compose the final bitmap or PDF representation for output.
+The flow feature currently owns the most complexity:
 
-## Photo Pipeline
+- camera mode selection
+- capture actions and countdown states
+- photo assignment transforms and slots
+- strip layout and template selection
+- sticker placement and rotation
+- preview and print preparation
 
-1. CameraX captures a photo to a local file.
-2. Storage service assigns the file to the session.
-3. Flow state records the captured frame path.
-4. Preview composables load the bitmap for display.
-5. Print composer prepares the same image for print export.
+Because the flow state is centralized, this is the primary area to refactor carefully.
 
-## Template and Layout Pipeline
+## Current strengths
 
-1. Template manifests and layout files are loaded from assets.
-2. Template JSON is parsed through the manifest schema docs in `docs/json-schemas/`.
-3. Layout JSON is parsed into the internal strip layout model.
-4. Assignment and preview screens render the selected background and overlay.
-5. Captured frames are composited into the layout slots.
+- Clear feature boundaries
+- Simple dependency injection via `KawaiiPbDependencies`
+- Reusable design system for Compose screens
+- Easy to extend incrementally without a full rewrite
 
-## Strengths
+## Current risks
 
-- Clear separation between flow state and UI
-- Compose-friendly state updates
-- Small service layer for IO-heavy tasks
-- Incremental refactoring is practical because responsibilities are already feature-based
+- `FlowViewModel` and `FlowUiState` are dense and stateful
+- UI and transition logic are still fairly coupled
+- The app would benefit from more test coverage around stage transitions and print rendering
 
-## Current Risks
+## Recommended direction
 
-- Large legacy files can reaccumulate if helper ownership is not enforced
-- Shared image loading can become a performance bottleneck without caching
-- UI preview code can become repetitive if not kept in dedicated helper files
-
-## Recommended Direction
-
-- Keep `FlowScreen.kt` as the coordinator only
-- Keep capture, assignment, and shared widgets in their own files
-- Keep bitmap and asset loading centralized
-- Keep ViewModel helper logic out of the UI layer
+- Keep `FlowScreen.kt` as a thin coordinator
+- split stage-specific UI into smaller composables
+- isolate pure state updates into helper functions
+- keep all file and media operations behind the storage service boundary

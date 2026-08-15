@@ -1,106 +1,65 @@
 # KawaiiPB Roadmap
 
-Last updated: 2026-08-12
+Last updated: 2026-08-15
 
-This document captures the prioritized improvement plan for the app.
+This roadmap reflects the current project reality and the next most valuable improvements for the app.
 
-## Phase 1. Critical Bugs
+## Priority 1: Reduce flow complexity
 
-Goal: fix issues that can block users or break the flow.
+Goal: make the kiosk flow easier to reason about and safer to refactor.
 
-- Priority: Highest
-- Complexity: Medium
-- Risk: High
-- Impact: Immediate stability improvement
-- Examples:
-  - Camera failures
-  - Printing failures
-  - Null-state crashes
-  - Incorrect navigation transitions
+- Focus: `feature/flow/presentation`
+- Why: this is the most state-heavy and risk-heavy part of the app
+- Planned work:
+  - split large flow stage logic into clearer sections
+  - separate pure state transitions from UI code
+  - reduce duplicate callback and transform logic
 
-## Phase 2. Architecture Refactoring
+## Priority 2: Improve regression protection
 
-Goal: reduce coupling and split oversized files without changing behavior.
+Goal: prevent subtle behavior regressions during refactoring.
 
-- Priority: High
-- Complexity: High
-- Risk: Medium
-- Impact: Lower maintenance cost and easier testing
-- Examples:
-  - Split `FlowScreen.kt`
-  - Move reusable UI helpers into focused files
-  - Extract shared ViewModel utilities
+- Focus: capture, assignment, template, and print behavior
+- Why: these are user-visible flows with many edge cases
+- Planned work:
+  - add targeted tests around state transitions
+  - validate asset and layout resolution
+  - verify print output generation after flow changes
 
-## Phase 3. Performance Improvements
+## Priority 3: Align docs with actual assets
 
-Goal: reduce unnecessary work in image-heavy and Compose-heavy paths.
+Goal: keep schema and documentation accurate with the real JSON files in the repo.
 
-- Priority: High
-- Complexity: Medium
-- Risk: Low
-- Impact: Better responsiveness and lower memory churn
-- Examples:
-  - Cache decoded bitmaps
-  - Avoid repeated image scaling
-  - Reduce redundant preview loading
+- Focus: `docs/json-schemas/` and `app/src/main/assets/`
+- Why: asset contracts can drift if the UI changes without updating docs
+- Planned work:
+  - document the template manifest contract precisely
+  - keep layout docs aligned with current layout files
+  - validate asset filenames and keys against actual files
 
-## Phase 4. Code Cleanup
+## Priority 4: Structural cleanup
 
-Goal: remove dead code, commented blocks, and duplicate helpers.
+Goal: continue reducing code duplication and selective coupling without broad architectural churn.
 
-- Priority: Medium
-- Complexity: Medium
-- Risk: Low
-- Impact: Smaller files and clearer ownership
-- Examples:
-  - Remove legacy commented blocks
-  - Delete unused helpers
-  - Normalize imports
+- Focus: shared UI and helper logic
+- Why: small cleanup steps are lower risk than full rewrites
+- Planned work:
+  - reduce duplication in flow helpers
+  - keep service boundaries clear
+  - preserve the existing architecture until major refactor is justified
 
-## Phase 5. UI Improvements
+## Priority 5: Feature polish
 
-Goal: improve spacing, hierarchy, and interaction clarity.
+Goal: improve usability and maintainability of the retail kiosk experience.
 
-- Priority: Medium
-- Complexity: Medium
-- Risk: Medium
-- Impact: Better operator experience
-- Examples:
-  - Tighter layout consistency
-  - Better loading states
-  - Improved feedback for capture and assignment
-  - Cleaner template tab spacing and embedded custom color controls
-
-## Phase 6. Feature Improvements
-
-Goal: expand functionality where it adds user value.
-
-- Priority: Medium
-- Complexity: Variable
-- Risk: Medium
-- Impact: More useful kiosk workflow
-- Examples:
-  - Better template selection
-  - Smarter photo assignment
-  - Richer preview controls
-  - Improved template and color-selection ergonomics
-
-## Phase 7. Future Scalability
-
-Goal: prepare the app for growth, reuse, and maintainability.
-
-- Priority: Lower, but ongoing
-- Complexity: High
-- Risk: Medium
-- Impact: Long-term sustainability
-- Examples:
-  - Stronger abstraction boundaries
-  - Test-friendly architecture
-  - Better package/module separation
+- Focus: session UX, template selection, and admin ergonomics
+- Planned work:
+  - improve clarity and consistency of the flow stages
+  - reduce friction in template and layout selection
+  - improve operator feedback and error states
 
 ## Notes
 
-- All phases should preserve current behavior unless explicitly approved.
-- Large refactors should be split into small, testable steps.
-- Every change should be followed by build and unit-test verification.
-- Flow UI changes should also be verified visually in the template tab because spacing and overlays are easy to regress there.
+- The current app build is verified to compile successfully.
+- The flow feature remains the primary refactor target.
+- A full architecture rewrite is not recommended before the flow layer is stabilized and covered by tests.

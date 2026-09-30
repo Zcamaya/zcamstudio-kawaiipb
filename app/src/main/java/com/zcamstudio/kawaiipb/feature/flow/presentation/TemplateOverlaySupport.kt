@@ -344,9 +344,11 @@ private fun findImageFile(folder: File, baseName: String? = null): File? {
         ?.filter { it.isFile && supportedOverlayExtensions.contains(it.extension.lowercase()) }
         ?: return null
 
-    return baseName?.let { name ->
-        candidates.firstOrNull { it.nameWithoutExtension.equals(name, ignoreCase = true) }
-    } ?: candidates.firstOrNull()
+    return if (baseName == null) {
+        candidates.firstOrNull()
+    } else {
+        candidates.firstOrNull { it.nameWithoutExtension.equals(baseName, ignoreCase = true) }
+    }
 }
 
 private fun findAssetOverlayPath(context: Context, assetFolderPath: String, sizeKey: String): String? {
@@ -402,6 +404,7 @@ private fun assetExists(context: Context, assetPath: String): Boolean {
 
 private fun fallbackTemplateDisplayName(folderName: String, overlayPath: String?): String {
     val overlayStem = overlayPath
+        ?.replace('\\', '/')
         ?.substringAfterLast('/')
         ?.substringBeforeLast('.')
         ?.takeIf { it.isNotBlank() }

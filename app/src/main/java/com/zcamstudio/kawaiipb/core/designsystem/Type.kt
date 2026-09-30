@@ -7,47 +7,49 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 
 private val RoundedFamily = FontFamily.SansSerif
+private val DisplayFamily = FontFamily.Serif
+private val InterfaceFamily = FontFamily.SansSerif
 
 val KawaiiTypography = Typography(
     displayLarge = TextStyle(
-        fontFamily = RoundedFamily,
+        fontFamily = DisplayFamily,
         fontWeight = FontWeight.ExtraBold,
         fontSize = 54.sp,
         lineHeight = 60.sp,
-        letterSpacing = (-0.75).sp
+        letterSpacing = 0.sp
     ),
     headlineLarge = TextStyle(
-        fontFamily = RoundedFamily,
+        fontFamily = DisplayFamily,
         fontWeight = FontWeight.Bold,
         fontSize = 32.sp,
         lineHeight = 38.sp
     ),
     headlineMedium = TextStyle(
-        fontFamily = RoundedFamily,
+        fontFamily = DisplayFamily,
         fontWeight = FontWeight.SemiBold,
         fontSize = 24.sp,
         lineHeight = 30.sp
     ),
     titleLarge = TextStyle(
-        fontFamily = RoundedFamily,
+        fontFamily = InterfaceFamily,
         fontWeight = FontWeight.SemiBold,
         fontSize = 20.sp,
         lineHeight = 26.sp
     ),
     bodyLarge = TextStyle(
-        fontFamily = RoundedFamily,
+        fontFamily = InterfaceFamily,
         fontWeight = FontWeight.Normal,
         fontSize = 18.sp,
         lineHeight = 26.sp
     ),
     bodyMedium = TextStyle(
-        fontFamily = RoundedFamily,
+        fontFamily = InterfaceFamily,
         fontWeight = FontWeight.Normal,
         fontSize = 16.sp,
         lineHeight = 24.sp
     ),
     labelLarge = TextStyle(
-        fontFamily = RoundedFamily,
+        fontFamily = InterfaceFamily,
         fontWeight = FontWeight.SemiBold,
         fontSize = 16.sp,
         lineHeight = 20.sp

@@ -25,10 +25,12 @@ class AdminViewModel(
             val summary = getAdminDashboardSummaryUseCase()
             val savedSettings = storageService.loadFlowTimerSettings()
             val savedCameraSelections = storageService.loadCameraModeSelections()
+            val disabledStripLayoutPaths = storageService.loadDisabledStripLayoutPaths()
             _uiState.update {
                 it.copy(
                     isLoading = false,
                     summary = summary,
+                    disabledStripLayoutPaths = disabledStripLayoutPaths,
                     cameraModeDuration = savedSettings.cameraModeDuration,
                     captureDuration = savedSettings.captureDuration,
                     photoAssignmentDuration = savedSettings.photoAssignmentDuration,
@@ -45,6 +47,19 @@ class AdminViewModel(
 
     fun onSectionSelected(section: String) {
         _uiState.update { it.copy(selectedSection = section) }
+    }
+
+    fun onStripLayoutEnabledChanged(path: String, isEnabled: Boolean) {
+        _uiState.update { state ->
+            val disabledPaths = state.disabledStripLayoutPaths.toMutableSet().apply {
+                if (isEnabled) remove(path) else add(path)
+            }.toSet()
+            storageService.saveDisabledStripLayoutPaths(disabledPaths)
+            state.copy(
+                disabledStripLayoutPaths = disabledPaths,
+                statusMessage = if (isEnabled) "Strip size enabled" else "Strip size disabled"
+            )
+        }
     }
 
     fun onCameraSelectionChanged(mode: String, cameraId: String) {

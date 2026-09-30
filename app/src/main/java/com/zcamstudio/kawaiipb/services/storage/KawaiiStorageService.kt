@@ -32,6 +32,7 @@ class KawaiiStorageService(private val context: Context) {
     private val settingsDir = File(internalRootDir, "settings")
     private val flowTimerSettingsFile = File(settingsDir, "flow_timer_settings.properties")
     private val cameraModeSelectionsFile = File(settingsDir, "camera_mode_selections.properties")
+    private val disabledStripLayoutPathsFile = File(settingsDir, "disabled_strip_layouts.properties")
 
     // Public-facing work folders are rooted under the device Pictures tree.
     // The PDF export and imported assets are stored in Pictures/KawaiiPB.
@@ -101,7 +102,36 @@ class KawaiiStorageService(private val context: Context) {
         }
     }
 
+    fun loadDisabledStripLayoutPaths(): Set<String> {
+        if (!disabledStripLayoutPathsFile.exists()) return emptySet()
+        return disabledStripLayoutPathsFile.inputStream().use { stream ->
+            disabledStripLayoutPathsFromProperties(Properties().apply { load(stream) })
+        }
+    }
+
+    fun saveDisabledStripLayoutPaths(paths: Set<String>) {
+        ensureDirectory(settingsDir)
+        disabledStripLayoutPathsFile.outputStream().use { stream ->
+            disabledStripLayoutPathsToProperties(paths).store(stream, "KawaiiPB disabled strip layouts")
+        }
+    }
+
     companion object {
+        private const val DisabledStripLayoutPrefix = "disabledStripLayout:"
+
+        fun disabledStripLayoutPathsToProperties(paths: Set<String>): Properties {
+            return Properties().apply {
+                paths.forEach { path -> setProperty("$DisabledStripLayoutPrefix$path", "true") }
+            }
+        }
+
+        fun disabledStripLayoutPathsFromProperties(properties: Properties): Set<String> {
+            return properties.stringPropertyNames()
+                .filter { key -> key.startsWith(DisabledStripLayoutPrefix) && properties.getProperty(key) == "true" }
+                .map { key -> key.removePrefix(DisabledStripLayoutPrefix) }
+                .toSet()
+        }
+
         fun flowTimerSettingsToMap(settings: FlowTimerSettings): Properties {
             return Properties().apply {
                 setProperty("cameraModeDuration", settings.cameraModeDuration.toString())

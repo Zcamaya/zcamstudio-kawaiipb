@@ -251,6 +251,8 @@ internal fun FlowCameraCaptureStage(
                         .fillMaxHeight()
                         .clip(RoundedCornerShape(26.dp))
                         .background(Color(0xFFF8F3F6))
+                        .background(WarmCream)
+                        .border(1.5.dp, AntiqueGold.copy(alpha = 0.85f), RoundedCornerShape(26.dp))
                 ) {
                     AndroidView(
                         factory = { viewContext ->
@@ -272,8 +274,12 @@ internal fun FlowCameraCaptureStage(
                         )
                     } else if (uiState.cameraError != null) {
                         CaptureOverlayMessage(
-                            title = "Camera error",
-                            subtitle = uiState.cameraError
+                            title = if (uiState.cameraError == "No photo captured") "No photo captured" else "Camera error",
+                            subtitle = if (uiState.cameraError == "No photo captured") {
+                                "Returning to the main screen..."
+                            } else {
+                                uiState.cameraError
+                            }
                         )
                     } else if (!uiState.isCameraReady) {
                         CaptureOverlayMessage(
@@ -417,7 +423,7 @@ internal fun CapturedPreviewCard(frame: com.zcamstudio.kawaiipb.domain.model.Cap
         shape = RoundedCornerShape(18.dp),
         color = Color.White.copy(alpha = 0.88f),
         shadowElevation = 4.dp,
-        modifier = Modifier.size(width = 110.dp, height = 146.dp)
+        modifier = Modifier.fillMaxWidth().height(104.dp)
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
             if (imageBitmap != null) {

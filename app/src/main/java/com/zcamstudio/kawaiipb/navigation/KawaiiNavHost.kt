@@ -154,6 +154,7 @@ fun KawaiiNavHost(
                 onSectionSelected = viewModel::onSectionSelected,
                 onTimerSettingChanged = viewModel::onTimerSettingChanged,
                 onCameraSelectionChanged = viewModel::onCameraSelectionChanged,
+                onStripLayoutEnabledChanged = viewModel::onStripLayoutEnabledChanged,
                 onSaveTimerSettings = viewModel::onSaveTimerSettings,
                 onResetTimerSettings = viewModel::onResetTimerSettings,
                 onBackToLanding = {

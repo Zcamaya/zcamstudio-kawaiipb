@@ -21,4 +21,6 @@ dependencyResolutionManagement {
 
 rootProject.name = "KawaiiPB"
 include(":app")
+include(":shared")
+include(":desktopApp")
  

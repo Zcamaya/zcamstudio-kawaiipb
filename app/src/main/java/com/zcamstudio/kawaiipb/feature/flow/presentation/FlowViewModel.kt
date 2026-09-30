@@ -16,6 +16,7 @@ import com.zcamstudio.kawaiipb.feature.printing.PrintService
 import com.zcamstudio.kawaiipb.services.logging.SessionLogService
 import com.zcamstudio.kawaiipb.services.storage.KawaiiStorageService
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -47,7 +48,11 @@ class FlowViewModel(
             val catalog = getKioskSessionCatalogUseCase()
             val savedSettings = storageService.loadFlowTimerSettings()
             val savedCameraSelections = storageService.loadCameraModeSelections()
+            val disabledStripLayoutPaths = storageService.loadDisabledStripLayoutPaths()
             val discoveredStripLayouts = listStripLayoutOptions(storageService.appContext())
+            val enabledStripLayouts = discoveredStripLayouts
+                .filterNot { it.layoutAssetPath in disabledStripLayoutPaths }
+                .ifEmpty { discoveredStripLayouts.take(1) }
             _uiState.update { state ->
                 state.copy(
                     isLoading = false,
@@ -55,8 +60,8 @@ class FlowViewModel(
                     cameraMode = catalog.cameraModes.firstOrNull() ?: CameraMode.Classic,
                     defaultCameraLens = defaultLensForCameraMode(catalog.cameraModes.firstOrNull() ?: CameraMode.Classic),
                     stripSize = catalog.stripSizes.firstOrNull() ?: StripSize.TwoByFour,
-                    stripLayoutOptions = discoveredStripLayouts,
-                    selectedStripLayoutAssetPath = discoveredStripLayouts.firstOrNull()?.layoutAssetPath
+                    stripLayoutOptions = enabledStripLayouts,
+                    selectedStripLayoutAssetPath = enabledStripLayouts.firstOrNull()?.layoutAssetPath
                         ?: stripSizeLayoutAssetPath(catalog.stripSizes.firstOrNull() ?: StripSize.TwoByFour),
                     sessionId = sessionId,
                     stage = KioskFlowStage.CameraMode,
@@ -424,6 +429,8 @@ class FlowViewModel(
     private fun onTick() {
         _uiState.update { state ->
             if (state.isLoading) return@update state
+            val emptyCaptureTimedOut = state.stage == KioskFlowStage.Capture &&
+                state.stageSecondsLeft == 1 && state.capturedFrames.isEmpty()
             val newSessionSeconds = (state.sessionSecondsLeft - 1).coerceAtLeast(0)
             val nextPrintProgress = state.printProgress
             val nextQrExpiry = if (state.stage == KioskFlowStage.Qr) (state.qrExpirySeconds - 1).coerceAtLeast(0) else state.qrExpirySeconds
@@ -446,6 +453,14 @@ class FlowViewModel(
                 }
             }
 
+            if (emptyCaptureTimedOut) {
+                viewModelScope.launch {
+                    sessionLogService.logEvent(sessionId, "capture_timeout_no_photos")
+                    delay(1800)
+                    _effects.emit(FlowEffect.ReturnToLanding)
+                }
+            }
+
             if (nextState.stage == KioskFlowStage.Printing) {
                 nextState = nextState.copy(
                     printStatus = when {
@@ -456,7 +471,7 @@ class FlowViewModel(
                 )
             }
 
-            if (nextState.sessionSecondsLeft == 0 && state.sessionSecondsLeft > 0) {
+            if (nextState.sessionSecondsLeft == 0 && state.sessionSecondsLeft > 0 && !emptyCaptureTimedOut) {
                 viewModelScope.launch {
                     sessionLogService.logEvent(sessionId, "session_timeout_return")
                     _effects.emit(FlowEffect.ReturnToLanding)

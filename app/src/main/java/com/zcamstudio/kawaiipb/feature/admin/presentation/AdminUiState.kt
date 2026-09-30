@@ -13,6 +13,7 @@ data class AdminUiState(
     val summary: AdminDashboardSummary? = null,
     val selectedSection: String = "Dashboard",
     val statusMessage: String? = null,
+    val disabledStripLayoutPaths: Set<String> = emptySet(),
     val cameraModeDuration: Int = 20,
     val captureDuration: Int = 90,
     val photoAssignmentDuration: Int = 25,

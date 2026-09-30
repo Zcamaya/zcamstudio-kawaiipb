@@ -67,7 +67,7 @@ data class FlowUiState(
     val isCaptureInProgress: Boolean = false,
     val cameraError: String? = null,
     val activeTool: BrushTool = BrushTool.Brush,
-    val activeColorArgb: Long = 0xFFFF7FA7,
+    val activeColorArgb: Long = 0xFF465B50,
     val brushSize: Float = 10f,
     val printSteps: List<PrintStep> = listOf(
         PrintStep("Prepare"),

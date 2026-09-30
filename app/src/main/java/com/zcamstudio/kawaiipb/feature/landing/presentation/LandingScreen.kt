@@ -1,6 +1,7 @@
 package com.zcamstudio.kawaiipb.feature.landing.presentation
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -11,6 +12,12 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -23,12 +30,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import com.zcamstudio.kawaiipb.core.designsystem.CherryPink
 import com.zcamstudio.kawaiipb.core.designsystem.CloudWhite
 import com.zcamstudio.kawaiipb.core.designsystem.KawaiiBackdrop
-import com.zcamstudio.kawaiipb.core.designsystem.KawaiiMascot
 import com.zcamstudio.kawaiipb.core.designsystem.KawaiiPrimaryButton
 import com.zcamstudio.kawaiipb.core.designsystem.KawaiiSpacing
 import com.zcamstudio.kawaiipb.core.designsystem.KioskLayoutMode
@@ -66,6 +75,25 @@ fun LandingScreen(
             MaterialTheme.typography.displayLarge
         }
         val buttonWidthFraction = if (isPortrait) 0.74f else 0.36f
+        val logoMotion = rememberInfiniteTransition(label = "logo motion")
+        val logoScale by logoMotion.animateFloat(
+            initialValue = 1f,
+            targetValue = 1.025f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(durationMillis = 2400, easing = FastOutSlowInEasing),
+                repeatMode = RepeatMode.Reverse
+            ),
+            label = "logo scale"
+        )
+        val logoRotation by logoMotion.animateFloat(
+            initialValue = -0.8f,
+            targetValue = 0.8f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(durationMillis = 3200, easing = FastOutSlowInEasing),
+                repeatMode = RepeatMode.Reverse
+            ),
+            label = "logo rotation"
+        )
 
         Column(
             modifier = Modifier
@@ -87,15 +115,26 @@ fun LandingScreen(
                 ) {
                     Surface(
                         shape = CircleShape,
-                        color = WarmCream,
-                        border = BorderStroke(1.dp, SoftLavender.copy(alpha = 0.55f)),
-                        shadowElevation = 8.dp
+                        color = CloudWhite,
+                        border = BorderStroke(1.dp, CherryPink.copy(alpha = 0.30f)),
+                        shadowElevation = 2.dp
                     ) {
                         Box(
                             modifier = Modifier.size(logoSize - 40.dp),
                             contentAlignment = Alignment.Center
                         ) {
-                            KawaiiMascot(modifier = Modifier.size(mascotSize))
+                            Image(
+                                painter = painterResource(id = com.zcamstudio.kawaiipb.R.drawable.fotochrono_logo),
+                                contentDescription = "Fotochrono logo",
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .graphicsLayer {
+                                        scaleX = logoScale
+                                        scaleY = logoScale
+                                        rotationZ = logoRotation
+                                    },
+                                contentScale = ContentScale.Fit
+                            )
                         }
                     }
                 }

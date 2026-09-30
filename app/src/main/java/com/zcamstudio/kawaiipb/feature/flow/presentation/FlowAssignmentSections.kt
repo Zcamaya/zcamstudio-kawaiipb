@@ -27,6 +27,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
@@ -96,6 +97,7 @@ import com.zcamstudio.kawaiipb.core.designsystem.CloudWhite
 import com.zcamstudio.kawaiipb.core.designsystem.InkRose
 import com.zcamstudio.kawaiipb.core.designsystem.KawaiiPrimaryButton
 import com.zcamstudio.kawaiipb.core.designsystem.KawaiiSecondaryButton
+import com.zcamstudio.kawaiipb.core.designsystem.LineRose
 import com.zcamstudio.kawaiipb.core.designsystem.MintFoam
 import com.zcamstudio.kawaiipb.core.designsystem.SoftLavender
 import com.zcamstudio.kawaiipb.core.designsystem.SoftText
@@ -203,7 +205,8 @@ internal fun FlowPhotoAssignmentStage(
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .weight(1f),
+                            .weight(1f)
+                            .verticalScroll(rememberScrollState()),
                         verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
                         Row(
@@ -607,6 +610,8 @@ internal fun FlowAssignmentLayoutPreview(
                 val offsetY = (slot.y * scale).dp
                 val slotWidth = (slot.width * scale).dp
                 val slotHeight = (slot.height * scale).dp
+                val slotWidthPx = with(LocalDensity.current) { slotWidth.toPx() }
+                val slotHeightPx = with(LocalDensity.current) { slotHeight.toPx() }
                 val imageBitmap = remember(frame?.imagePath) { frame?.imagePath?.let { loadCapturePhoto(it) } }
                 val slotShape = remember(slot.mask) { resolvePhotoSlotShape(slot.mask) }
 
@@ -634,8 +639,8 @@ internal fun FlowAssignmentLayoutPreview(
                                 detectTransformGestures { _, pan, zoom, rotation ->
                                     currentTransform = currentTransform.copy(
                                         scale = (currentTransform.scale * zoom).coerceIn(0.5f, 5f),
-                                        offsetX = currentTransform.offsetX + pan.x,
-                                        offsetY = currentTransform.offsetY + pan.y,
+                                        offsetX = currentTransform.offsetX + normalizePhotoOffset(pan.x, slotWidthPx),
+                                        offsetY = currentTransform.offsetY + normalizePhotoOffset(pan.y, slotHeightPx),
                                         rotation = currentTransform.rotation + rotation
                                     )
                                     onUpdatePhotoTransform(
@@ -653,23 +658,18 @@ internal fun FlowAssignmentLayoutPreview(
                             val imageWidth = imageBitmap.width.toFloat()
                             val imageHeight = imageBitmap.height.toFloat()
                             val imageDisplaySize = with(LocalDensity.current) {
-                                val slotWidthPx = slotWidth.toPx()
-                                val slotHeightPx = slotHeight.toPx()
-                                val fillScale = max(slotWidthPx / imageWidth, slotHeightPx / imageHeight) * 1.25f
-                                Pair((imageWidth * fillScale).toDp(), (imageHeight * fillScale).toDp())
+                                val coverScale = photoCoverScale(slotWidthPx, slotHeightPx, imageWidth, imageHeight)
+                                Pair((imageWidth * coverScale).toDp(), (imageHeight * coverScale).toDp())
                             }
-                            val imageDisplayWidth = imageDisplaySize.first
-                            val imageDisplayHeight = imageDisplaySize.second
-
                             Image(
                                 bitmap = imageBitmap,
                                 contentDescription = frame?.label,
                                 contentScale = ContentScale.Fit,
                                 modifier = Modifier
-                                    .size(width = imageDisplayWidth, height = imageDisplayHeight)
+                                    .requiredSize(width = imageDisplaySize.first, height = imageDisplaySize.second)
                                     .graphicsLayer(
-                                        translationX = transform.offsetX,
-                                        translationY = transform.offsetY,
+                                        translationX = photoOffsetPixels(transform.offsetX, slotWidthPx),
+                                        translationY = photoOffsetPixels(transform.offsetY, slotHeightPx),
                                         scaleX = transform.scale,
                                         scaleY = transform.scale,
                                         rotationZ = transform.rotation,
@@ -767,15 +767,15 @@ internal fun FlowPrintSheetPreview(
                 .width(previewWidth.dp)
                 .height(previewHeight.dp)
                 .clip(RoundedCornerShape(22.dp))
-                .background(Color(0xFFEDEDED))
-                .border(2.dp, Color(0xFFDFDFDF), RoundedCornerShape(22.dp))
+                .background(WarmCream)
+                .border(2.dp, LineRose, RoundedCornerShape(22.dp))
         ) {
             Box(modifier = Modifier.fillMaxSize().padding(10.dp).clip(RoundedCornerShape(18.dp)).background(Color.White)) {
                 if (backgroundImage != null) {
                     Image(bitmap = backgroundImage, contentDescription = null, contentScale = ContentScale.FillBounds, modifier = Modifier.fillMaxSize())
                 }
-                Box(modifier = Modifier.offset(12.dp, 12.dp).width((previewWidth - 44f).dp).height(24.dp).clip(RoundedCornerShape(12.dp)).background(Color(0xFFF2F0FF))) {}
-                Box(modifier = Modifier.offset(12.dp, (previewHeight - 36f).dp).width((previewWidth - 44f).dp).height(24.dp).clip(RoundedCornerShape(12.dp)).background(Color(0xFFF2F0FF))) {}
+                Box(modifier = Modifier.offset(12.dp, 12.dp).width((previewWidth - 44f).dp).height(24.dp).clip(RoundedCornerShape(12.dp)).background(SoftLavender)) {}
+                Box(modifier = Modifier.offset(12.dp, (previewHeight - 36f).dp).width((previewWidth - 44f).dp).height(24.dp).clip(RoundedCornerShape(12.dp)).background(SoftLavender)) {}
 
                 layout.photoSlots.forEachIndexed { slotIndex, slot ->
                     val assignedIndex = assignments.getOrNull(slotIndex)
@@ -787,8 +787,8 @@ internal fun FlowPrintSheetPreview(
 
                     Surface(
                         shape = RoundedCornerShape(12.dp),
-                        color = if (frame != null) Color(0xFFF8F7FF) else Color(0xFFF6F6F8),
-                        border = BorderStroke(1.8.dp, if (frame != null) Color(0xFFB5A8F3) else Color(0xFFC8C8D2)),
+                        color = if (frame != null) CloudWhite else WarmCream,
+                        border = BorderStroke(1.8.dp, if (frame != null) CherryPink else LineRose),
                         modifier = Modifier
                             .offset(x = (slotLeft + 10f).dp, y = (slotTop + 10f).dp)
                             .size(width = slotWidth.dp, height = slotHeight.dp)

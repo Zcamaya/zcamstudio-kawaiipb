@@ -70,6 +70,35 @@ If you want to just validate compilation:
 .\gradlew.bat :app:compileDebugKotlin
 ```
 
+### Native Windows target
+
+The repository now includes a Compose Desktop Windows target and a shared Kotlin module.
+The desktop target is the foundation for the cross-platform port; the existing Android flow
+continues to build unchanged while camera, storage, and printing adapters are migrated.
+
+Compile the Windows target with:
+
+```powershell
+.\gradlew.bat :desktopApp:compileKotlin
+```
+
+Run the native desktop window with:
+
+```powershell
+.\gradlew.bat :desktopApp:run
+```
+
+Create Windows installers with:
+
+```powershell
+.\gradlew.bat :desktopApp:packageMsi
+```
+
+Windows packaging requires a full JDK that includes `jpackage.exe`; Android Studio's bundled
+runtime may not include it. The current desktop launcher is intentionally a migration foundation.
+Camera capture, Windows file storage, image/PDF rendering, printer integration, and the full
+session flow still need desktop implementations.
+
 ## Important docs
 
 - [Architecture overview](ARCHITECTURE.md)

@@ -232,29 +232,6 @@ fun KawaiiMascot(
 fun KawaiiBackdrop(modifier: Modifier = Modifier) {
     Box(
         modifier = modifier
-            .background(
-                Brush.verticalGradient(
-                    colors = listOf(WarmCream, BlossomGlow, CloudWhite)
-                )
-            )
-    ) {
-        Box(
-            modifier = Modifier
-                .align(Alignment.TopEnd)
-                .size(220.dp)
-                .background(SakuraPink.copy(alpha = 0.35f), CircleShape)
-        )
-        Box(
-            modifier = Modifier
-                .align(Alignment.BottomStart)
-                .size(260.dp)
-                .background(SoftLavender.copy(alpha = 0.25f), CircleShape)
-        )
-        Box(
-            modifier = Modifier
-                .align(Alignment.CenterEnd)
-                .size(180.dp)
-                .background(MintFoam.copy(alpha = 0.22f), CircleShape)
-        )
-    }
+            .background(WarmCream)
+    )
 }

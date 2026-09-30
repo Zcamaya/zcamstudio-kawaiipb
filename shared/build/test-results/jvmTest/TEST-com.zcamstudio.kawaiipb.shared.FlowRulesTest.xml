@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="FlowRulesTest[jvm]" tests="10" skipped="0" failures="0" errors="0" timestamp="2026-09-24T06:18:11.198Z" hostname="BENEFITS75" time="0.079">
+  <properties/>
+  <testcase name="selectedAndFirstEmptySlotAssignmentMatchesAndroidRules[jvm]" classname="com.zcamstudio.kawaiipb.shared.FlowRulesTest" time="0.031"/>
+  <testcase name="timerDurationMatchesStageAndNormalizesAdminValues[jvm]" classname="com.zcamstudio.kawaiipb.shared.FlowRulesTest" time="0.001"/>
+  <testcase name="flowTickSignalsAndroidTimeoutsAndKeepsPrintingStatusRules[jvm]" classname="com.zcamstudio.kawaiipb.shared.FlowRulesTest" time="0.003"/>
+  <testcase name="shuffleResetAndTransformUpdatesMatchAssignmentEditorRules[jvm]" classname="com.zcamstudio.kawaiipb.shared.FlowRulesTest" time="0.001"/>
+  <testcase name="flowTickCountsDownAndRequestsCaptureAtZero[jvm]" classname="com.zcamstudio.kawaiipb.shared.FlowRulesTest" time="0.0"/>
+  <testcase name="flowTickAdvancesStagesAndAutofillsTimedOutAssignments[jvm]" classname="com.zcamstudio.kawaiipb.shared.FlowRulesTest" time="0.0"/>
+  <testcase name="sessionReducerFollowsAndroidScreenStageSequence[jvm]" classname="com.zcamstudio.kawaiipb.shared.FlowRulesTest" time="0.017"/>
+  <testcase name="photoTransformClampsScaleToEditorRange[jvm]" classname="com.zcamstudio.kawaiipb.shared.FlowRulesTest" time="0.0"/>
+  <testcase name="sessionReducerTracksCaptureSuccessAndFailure[jvm]" classname="com.zcamstudio.kawaiipb.shared.FlowRulesTest" time="0.013"/>
+  <testcase name="photoAssignmentsValidateIndexesRemoveAndAutofillOnlyEmptyActiveSlots[jvm]" classname="com.zcamstudio.kawaiipb.shared.FlowRulesTest" time="0.004"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

@@ -3,6 +3,9 @@ package com.zcamstudio.kawaiipb.services.storage
 import com.zcamstudio.kawaiipb.feature.flow.presentation.FlowTimerSettings
 import org.junit.Assert.assertEquals
 import org.junit.Test
+import java.io.StringReader
+import java.io.StringWriter
+import java.util.Properties
 
 class KawaiiStorageServiceTimerSettingsTest {
 
@@ -23,5 +26,27 @@ class KawaiiStorageServiceTimerSettingsTest {
         )
 
         assertEquals(settings, persisted)
+    }
+
+    @Test
+    fun disabledStripLayoutPathsRoundTripPreservesAssetAndWindowsPaths() {
+        val paths = setOf(
+            "asset://templates/Base",
+            "C:\\Users\\Operator\\Downloads\\KawaiiPB\\Templates\\SpringBloom"
+        )
+
+        val persisted = KawaiiStorageService.disabledStripLayoutPathsFromProperties(
+            Properties().apply {
+                load(
+                    StringReader(
+                        StringWriter().also { writer ->
+                            KawaiiStorageService.disabledStripLayoutPathsToProperties(paths).store(writer, null)
+                        }.toString()
+                    )
+                )
+            }
+        )
+
+        assertEquals(paths, persisted)
     }
 }

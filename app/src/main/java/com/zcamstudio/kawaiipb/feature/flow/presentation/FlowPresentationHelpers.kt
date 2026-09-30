@@ -40,6 +40,32 @@ fun stageDuration(stage: KioskFlowStage, settings: FlowTimerSettings = FlowTimer
     KioskFlowStage.Qr -> settings.qrCodeDuration
 }
 
+internal fun normalizePhotoOffset(offsetPx: Float, slotExtentPx: Float): Float =
+    if (slotExtentPx > 0f) offsetPx / slotExtentPx else 0f
+
+internal fun photoOffsetPixels(normalizedOffset: Float, slotExtentPx: Float): Float =
+    normalizedOffset * slotExtentPx
+
+internal fun photoContainScale(
+    slotWidthPx: Float,
+    slotHeightPx: Float,
+    imageWidthPx: Float,
+    imageHeightPx: Float
+): Float {
+    if (slotWidthPx <= 0f || slotHeightPx <= 0f || imageWidthPx <= 0f || imageHeightPx <= 0f) return 0f
+    return minOf(slotWidthPx / imageWidthPx, slotHeightPx / imageHeightPx)
+}
+
+internal fun photoCoverScale(
+    slotWidthPx: Float,
+    slotHeightPx: Float,
+    imageWidthPx: Float,
+    imageHeightPx: Float
+): Float {
+    if (slotWidthPx <= 0f || slotHeightPx <= 0f || imageWidthPx <= 0f || imageHeightPx <= 0f) return 0f
+    return maxOf(slotWidthPx / imageWidthPx, slotHeightPx / imageHeightPx)
+}
+
 fun stripSizePreviewAssetPath(size: StripSize): String = when (size) {
     StripSize.TwoByFour -> "layouts/strip_layout/2x4.png"
     StripSize.TwoByThree -> "layouts/strip_layout/2x3.png"
@@ -176,7 +202,19 @@ fun advanceFlowStateForTick(
     return if (stageSecondsLeft == 0) {
         when (advancedState.stage) {
             KioskFlowStage.CameraMode -> advancedState.copy(stage = KioskFlowStage.Capture, stageSecondsLeft = stageDuration(KioskFlowStage.Capture, advancedState.flowTimerSettings), captureShotCountdown = 0, isCaptureCountdownActive = false, summaryMessage = "Capture session ready")
-            KioskFlowStage.Capture -> advancedState.copy(stage = KioskFlowStage.StripSize, stageSecondsLeft = stageDuration(KioskFlowStage.StripSize, advancedState.flowTimerSettings), captureShotCountdown = 0, isCaptureCountdownActive = false, isCaptureInProgress = false, summaryMessage = "Time expired, choose strip size")
+            KioskFlowStage.Capture -> if (advancedState.capturedFrames.isEmpty()) {
+                advancedState.copy(
+                    stage = KioskFlowStage.Capture,
+                    stageSecondsLeft = 0,
+                    captureShotCountdown = 0,
+                    isCaptureCountdownActive = false,
+                    isCaptureInProgress = false,
+                    cameraError = "No photo captured",
+                    summaryMessage = "No photo captured"
+                )
+            } else {
+                advancedState.copy(stage = KioskFlowStage.StripSize, stageSecondsLeft = stageDuration(KioskFlowStage.StripSize, advancedState.flowTimerSettings), captureShotCountdown = 0, isCaptureCountdownActive = false, isCaptureInProgress = false, summaryMessage = "Time expired, choose strip size")
+            }
             KioskFlowStage.PhotoAssignment -> {
                 val autoFilled = autoFillRemainingFrames(advancedState)
                 autoFilled.copy(stage = KioskFlowStage.Preview, stageSecondsLeft = stageDuration(KioskFlowStage.Preview, advancedState.flowTimerSettings), summaryMessage = if (autoFilled.photoAssignmentAssignments.any { it == null }) "Time expired, review the strip" else "Time expired, auto-filled empty frames and review the strip")

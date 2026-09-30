@@ -22,6 +22,28 @@ class FlowPresentationHelpersTest {
     }
 
     @Test
+    fun photoPanUsesSlotRelativeOffsetsAcrossPreviewAndPrintSizes() {
+        val normalizedX = normalizePhotoOffset(50f, 200f)
+        val normalizedY = normalizePhotoOffset(-25f, 100f)
+
+        assertEquals(0.25f, normalizedX, 0.001f)
+        assertEquals(-0.25f, normalizedY, 0.001f)
+        assertEquals(100f, photoOffsetPixels(normalizedX, 400f), 0.001f)
+        assertEquals(-50f, photoOffsetPixels(normalizedY, 200f), 0.001f)
+        assertEquals(0f, normalizePhotoOffset(50f, 0f), 0f)
+    }
+
+    @Test
+    fun photoContainScaleKeepsTheWholeImageInsideItsSlot() {
+        val scale = photoContainScale(slotWidthPx = 100f, slotHeightPx = 150f, imageWidthPx = 1600f, imageHeightPx = 900f)
+
+        assertEquals(0.0625f, scale, 0.0001f)
+        assertEquals(100f, 1600f * scale, 0.01f)
+        assertEquals(56.25f, 900f * scale, 0.01f)
+        assertEquals(0f, photoContainScale(0f, 150f, 1600f, 900f), 0f)
+    }
+
+    @Test
     fun timeoutTransitionAdvancesToTheNextStage() {
         val state = FlowUiState(
             stage = KioskFlowStage.CameraMode,
@@ -41,6 +63,26 @@ class FlowPresentationHelpersTest {
         assertEquals(KioskFlowStage.Capture, advanced.stage)
         assertEquals(stageDuration(KioskFlowStage.Capture), advanced.stageSecondsLeft)
         assertEquals("Capture session ready", advanced.summaryMessage)
+    }
+
+    @Test
+    fun captureTimeoutWithoutPhotosStaysOnCaptureWithNoPhotoMessage() {
+        val emptyCaptureState = FlowUiState(
+            stage = KioskFlowStage.Capture,
+            stageSecondsLeft = 1,
+            sessionSecondsLeft = 60
+        )
+        val captureWithPhotoState = emptyCaptureState.copy(
+            capturedFrames = listOf(com.zcamstudio.kawaiipb.domain.model.CaptureFrame(1, 42, "Shot 1", "photo.jpg"))
+        )
+
+        val emptyResult = advanceFlowStateForTick(emptyCaptureState, 59, 0f, 300)
+        val photoResult = advanceFlowStateForTick(captureWithPhotoState, 59, 0f, 300)
+
+        assertEquals(KioskFlowStage.Capture, emptyResult.stage)
+        assertEquals("No photo captured", emptyResult.cameraError)
+        assertEquals("No photo captured", emptyResult.summaryMessage)
+        assertEquals(KioskFlowStage.StripSize, photoResult.stage)
     }
 
     @Test

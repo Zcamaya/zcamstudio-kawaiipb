@@ -58,6 +58,7 @@ import com.zcamstudio.kawaiipb.core.designsystem.*
 // BrushTool removed
 import com.zcamstudio.kawaiipb.domain.model.KioskFlowStage
 import com.zcamstudio.kawaiipb.domain.model.StripSize
+import com.zcamstudio.kawaiipb.services.storage.KawaiiStorageService
 import kotlinx.coroutines.flow.distinctUntilChanged
 // TemplateOption and StickerOption removed
 
@@ -351,10 +352,11 @@ internal fun StripPreviewCard(option: StripLayoutOption) {
 @Composable
 internal fun FlowPreviewStage(
     uiState: FlowUiState,
+    storageService: KawaiiStorageService,
     onBeginPrinting: () -> Unit,
     onReturnToLanding: () -> Unit
 ) {
-    FinalPreview(uiState = uiState)
+    FinalPreview(uiState = uiState, storageService = storageService)
     FlowStageActionRow(
         primaryLabel = "Continue to Print",
         secondaryLabel = "Back Home",

@@ -53,12 +53,7 @@ internal fun FlowTopHeader(
             Box(
                 modifier = Modifier
                     .size(40.dp)
-                    .background(
-                        brush = Brush.verticalGradient(
-                            colors = listOf(Color(0xFFFFC1D8), Color(0xFFFF7EAC))
-                        ),
-                        shape = CircleShape
-                    ),
+                    .background(color = com.zcamstudio.kawaiipb.core.designsystem.CherryPink, shape = CircleShape),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
@@ -102,10 +97,10 @@ private fun StageChip(stage: KioskFlowStage, selected: Boolean) {
         label = { Text(stage.name, fontWeight = if (selected) androidx.compose.ui.text.font.FontWeight.Bold else androidx.compose.ui.text.font.FontWeight.Normal) },
         modifier = Modifier.border(
             width = 1.dp,
-            color = if (selected) Color(0xFFFF699E) else Color(0x00FFFFFF),
+            color = if (selected) com.zcamstudio.kawaiipb.core.designsystem.CherryPink else Color.Transparent,
             shape = RoundedCornerShape(999.dp)
         ),
-        border = BorderStroke(1.dp, if (selected) Color(0xFFFF699E) else Color(0x00FFFFFF))
+        border = BorderStroke(1.dp, if (selected) com.zcamstudio.kawaiipb.core.designsystem.CherryPink else Color.Transparent)
     )
 }
 

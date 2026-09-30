@@ -12,6 +12,8 @@ import com.zcamstudio.kawaiipb.domain.model.StripSize
 import com.zcamstudio.kawaiipb.feature.flow.presentation.FlowUiState
 import com.zcamstudio.kawaiipb.feature.flow.presentation.PlacedSticker
 import com.zcamstudio.kawaiipb.feature.flow.presentation.PhotoTransform
+import com.zcamstudio.kawaiipb.feature.flow.presentation.photoOffsetPixels
+import com.zcamstudio.kawaiipb.feature.flow.presentation.photoCoverScale
 import com.zcamstudio.kawaiipb.feature.flow.presentation.parseStripSize
 import com.zcamstudio.kawaiipb.feature.flow.presentation.resolveLayoutAssetPath
 import com.zcamstudio.kawaiipb.feature.flow.presentation.stickerRenderRectPx
@@ -125,7 +127,7 @@ object PrintComposer {
             val transform = uiState.photoAssignmentTransforms.getOrNull(index) ?: PhotoTransform()
             val photoBitmap = frame?.imagePath?.let { loadPreparedBitmapForSlot(it, slotRect, transform) }
             if (photoBitmap != null) {
-                drawPhotoBitmapFit(canvas, photoBitmap, slotRect, transform, 1f)
+                drawPhotoBitmapFit(canvas, photoBitmap, slotRect, transform)
             } else {
                 canvas.drawRoundRect(slotRect, PrintConstants.SLOT_BORDER_RADIUS, PrintConstants.SLOT_BORDER_RADIUS, placeholderPaint)
             }
@@ -251,7 +253,7 @@ object PrintComposer {
             val transform = uiState.photoAssignmentTransforms.getOrNull(index) ?: PhotoTransform()
             val photoBitmap = frame?.imagePath?.let { loadPreparedBitmapForSlot(it, slotRect, transform) }
             if (photoBitmap != null) {
-                drawPhotoBitmapFit(canvas, photoBitmap, slotRect, transform, scale)
+                drawPhotoBitmapFit(canvas, photoBitmap, slotRect, transform)
             }
         }
 
@@ -284,15 +286,14 @@ object PrintComposer {
         return bitmap
     }
 
-    private fun drawPhotoBitmapFit(canvas: Canvas, photoBitmap: Bitmap, slotRect: RectF, transform: PhotoTransform = PhotoTransform(), scale: Float = 1f) {
+    private fun drawPhotoBitmapFit(canvas: Canvas, photoBitmap: Bitmap, slotRect: RectF, transform: PhotoTransform = PhotoTransform()) {
         val imageWidth = photoBitmap.width.toFloat()
         val imageHeight = photoBitmap.height.toFloat()
-        val baseScale = max(slotRect.width() / imageWidth, slotRect.height() / imageHeight) * 1.25f
+        val baseScale = photoCoverScale(slotRect.width(), slotRect.height(), imageWidth, imageHeight)
         val scaledWidth = imageWidth * baseScale * transform.scale
         val scaledHeight = imageHeight * baseScale * transform.scale
-        // Scale the transform offsets by the export scale factor to maintain proportional positioning
-        val left = slotRect.left + (slotRect.width() - scaledWidth) / 2f + transform.offsetX * scale
-        val top = slotRect.top + (slotRect.height() - scaledHeight) / 2f + transform.offsetY * scale
+        val left = slotRect.left + (slotRect.width() - scaledWidth) / 2f + photoOffsetPixels(transform.offsetX, slotRect.width())
+        val top = slotRect.top + (slotRect.height() - scaledHeight) / 2f + photoOffsetPixels(transform.offsetY, slotRect.height())
         val destRect = RectF(left, top, left + scaledWidth, top + scaledHeight)
 
         canvas.save()

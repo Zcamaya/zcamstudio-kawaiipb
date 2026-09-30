@@ -27,6 +27,7 @@ import androidx.compose.material3.Slider
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -43,6 +44,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.zcamstudio.kawaiipb.core.designsystem.CherryPink
 import kotlin.math.roundToInt
@@ -65,15 +67,23 @@ import com.zcamstudio.kawaiipb.domain.model.AdminDashboardSummary
 import com.zcamstudio.kawaiipb.domain.model.ChartPoint
 import com.zcamstudio.kawaiipb.domain.model.RankedItem
 import com.zcamstudio.kawaiipb.domain.model.StatusBadge
+import com.zcamstudio.kawaiipb.feature.flow.presentation.StripLayoutOption
+import com.zcamstudio.kawaiipb.feature.flow.presentation.listStripLayoutOptions
+
+private val PreCaptureDelayOptions = listOf(0, 3, 5, 7, 10)
 
 private val AdminSections = listOf(
     "Dashboard",
     "Camera",
+    "Strip Sizes",
     "Printer",
     "Storage",
     "Settings",
     "Logs"
 )
+
+private fun closestPreCaptureDelay(value: Int): Int =
+    PreCaptureDelayOptions.minByOrNull { kotlin.math.abs(it - value) } ?: 5
 
 @Composable
 fun AdminScreen(
@@ -81,6 +91,7 @@ fun AdminScreen(
     onSectionSelected: (String) -> Unit,
     onTimerSettingChanged: (String, Int) -> Unit,
     onCameraSelectionChanged: (String, String) -> Unit,
+    onStripLayoutEnabledChanged: (String, Boolean) -> Unit,
     onSaveTimerSettings: () -> Unit,
     onResetTimerSettings: () -> Unit,
     onBackToLanding: () -> Unit
@@ -88,6 +99,12 @@ fun AdminScreen(
     val layoutMode = rememberKioskLayoutMode()
     val isPortrait = layoutMode == KioskLayoutMode.Portrait
     val snackbarHostState = remember { SnackbarHostState() }
+    val context = LocalContext.current
+    val stripLayouts = remember(context) {
+        listStripLayoutOptions(context)
+            .distinctBy { it.layoutAssetPath }
+            .sortedBy { it.displayName.lowercase() }
+    }
 
     LaunchedEffect(uiState.statusMessage) {
         uiState.statusMessage?.let { message ->
@@ -138,6 +155,12 @@ fun AdminScreen(
                         cameraOptions = cameraOptions,
                         onCameraSelectionChanged = onCameraSelectionChanged
                     )
+                } else if (uiState.selectedSection == "Strip Sizes") {
+                    StripSizeSettingsCard(
+                        stripLayouts = stripLayouts,
+                        disabledStripLayoutPaths = uiState.disabledStripLayoutPaths,
+                        onStripLayoutEnabledChanged = onStripLayoutEnabledChanged
+                    )
                 } else {
                     PortraitDashboardContent(summary = summary)
                 }
@@ -174,6 +197,12 @@ fun AdminScreen(
                             uiState = uiState,
                             cameraOptions = cameraOptions,
                             onCameraSelectionChanged = onCameraSelectionChanged
+                        )
+                    } else if (uiState.selectedSection == "Strip Sizes") {
+                        StripSizeSettingsCard(
+                            stripLayouts = stripLayouts,
+                            disabledStripLayoutPaths = uiState.disabledStripLayoutPaths,
+                            onStripLayoutEnabledChanged = onStripLayoutEnabledChanged
                         )
                     } else {
                         LandscapeDashboardContent(summary = summary)
@@ -303,42 +332,44 @@ private fun TimerSettingsCard(
             timerFields.forEach { (label, key, valuePair) ->
                 val (range, currentValue) = valuePair
                 Column(modifier = Modifier.fillMaxWidth()) {
+                    val displayedValue = if (key == "preCaptureDelay") {
+                        closestPreCaptureDelay(currentValue)
+                    } else {
+                        currentValue
+                    }
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(text = label, style = MaterialTheme.typography.titleSmall, color = InkRose)
-                        Text(text = "$currentValue sec", style = MaterialTheme.typography.bodyMedium, color = SoftText)
+                        Text(text = "$displayedValue sec", style = MaterialTheme.typography.bodyMedium, color = SoftText)
                     }
                     if (key == "preCaptureDelay") {
-                        val sliderValue = when (currentValue) {
-                            0 -> 0f
-                            5 -> 1f
-                            else -> 2f
-                        }
+                        val sliderValue = PreCaptureDelayOptions
+                            .indexOf(displayedValue)
+                            .takeIf { it >= 0 }
+                            ?.toFloat()
+                            ?: 0f
                         Column(modifier = Modifier.fillMaxWidth()) {
                             Slider(
                                 value = sliderValue,
                                 onValueChange = { newValue ->
-                                    val snappedValue = when {
-                                        newValue <= 0.5f -> 0
-                                        newValue <= 1.5f -> 5
-                                        else -> 10
-                                    }
+                                    val optionIndex = newValue.roundToInt().coerceIn(0, PreCaptureDelayOptions.lastIndex)
+                                    val snappedValue = PreCaptureDelayOptions[optionIndex]
                                     onTimerSettingChanged(key, snappedValue)
                                 },
-                                valueRange = 0f..2f,
-                                steps = 2,
+                                valueRange = 0f..PreCaptureDelayOptions.lastIndex.toFloat(),
+                                steps = PreCaptureDelayOptions.size - 2,
                                 modifier = Modifier.fillMaxWidth()
                             )
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceBetween
                             ) {
-                                Text(text = "0s", style = MaterialTheme.typography.labelMedium, color = SoftText)
-                                Text(text = "5s", style = MaterialTheme.typography.labelMedium, color = SoftText)
-                                Text(text = "10s", style = MaterialTheme.typography.labelMedium, color = SoftText)
+                                PreCaptureDelayOptions.forEach { delay ->
+                                    Text(text = "${delay}s", style = MaterialTheme.typography.labelMedium, color = SoftText)
+                                }
                             }
                         }
                     } else {
@@ -419,6 +450,52 @@ private fun CameraSettingsCard(
                         options = cameraOptions,
                         onSelectionChanged = { cameraId -> onCameraSelectionChanged("elevator", cameraId) }
                     )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun StripSizeSettingsCard(
+    stripLayouts: List<StripLayoutOption>,
+    disabledStripLayoutPaths: Set<String>,
+    onStripLayoutEnabledChanged: (String, Boolean) -> Unit
+) {
+    KawaiiCard(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            KawaiiSectionTitle(
+                title = "Strip Sizes",
+                subtitle = "Choose which strip layouts appear in the photo booth."
+            )
+            if (stripLayouts.isEmpty()) {
+                Text(text = "No strip layouts found.", style = MaterialTheme.typography.bodyMedium, color = SoftText)
+            } else {
+                val enabledCount = stripLayouts.count { it.layoutAssetPath !in disabledStripLayoutPaths }
+                stripLayouts.forEachIndexed { index, option ->
+                    val isEnabled = option.layoutAssetPath !in disabledStripLayoutPaths
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                            Text(text = option.displayName, style = MaterialTheme.typography.titleSmall, color = InkRose)
+                            Text(
+                                text = "${option.frameCount} photo${if (option.frameCount == 1) "" else "s"}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = SoftText
+                            )
+                        }
+                        Switch(
+                            checked = isEnabled,
+                            enabled = !isEnabled || enabledCount > 1,
+                            onCheckedChange = { enabled -> onStripLayoutEnabledChanged(option.layoutAssetPath, enabled) }
+                        )
+                    }
+                    if (index < stripLayouts.lastIndex) {
+                        Box(Modifier.fillMaxWidth().height(1.dp).background(LineRose.copy(alpha = 0.7f)))
+                    }
                 }
             }
         }

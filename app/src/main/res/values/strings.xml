@@ -1,6 +1,6 @@
 <resources>
-    <string name="app_name">KawaiiPB</string>
-    <string name="landing_title">KAWAII PB</string>
+    <string name="app_name">Fotochrono</string>
+    <string name="landing_title">Fotochrono</string>
     <string name="landing_start_session">Start Session</string>
     <string name="landing_admin_title">Admin Access</string>
     <string name="landing_admin_message">This emulator does not have a real device lock, so unlock is simulated locally.</string>

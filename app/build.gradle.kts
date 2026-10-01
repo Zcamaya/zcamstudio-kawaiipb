@@ -5,6 +5,7 @@ plugins {
 
 android {
     namespace = "com.zcamstudio.kawaiipb"
+    ndkVersion = "27.2.12479018"
     compileSdk {
         version = release(36) {
             minorApiLevel = 1
@@ -18,7 +19,23 @@ android {
         versionCode = 1
         versionName = "1.0"
 
+        ndk {
+            abiFilters += listOf("arm64-v8a")
+        }
+        externalNativeBuild {
+            cmake {
+                arguments += listOf("-DANDROID_PLATFORM=android-31")
+            }
+        }
+
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+    }
+
+    externalNativeBuild {
+        cmake {
+            path = file("src/main/cpp/CMakeLists.txt")
+            version = "4.1.2"
+        }
     }
 
     buildTypes {

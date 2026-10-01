@@ -2,6 +2,7 @@ package com.zcamstudio.kawaiipb.services.storage
 
 import android.content.ContentValues
 import android.content.Context
+import android.content.ContentUris
 import android.net.Uri
 import android.os.Build
 import android.os.Environment
@@ -187,8 +188,30 @@ class KawaiiStorageService(private val context: Context) {
         return if (publicFile.exists()) publicFile.absolutePath else printPdfFile(sessionId).absolutePath
     }
 
+    fun findPublicPdfUri(sessionId: String): Uri? {
+        val filesUri = MediaStore.Files.getContentUri("external")
+        return findMediaStoreUri(filesUri, "$sessionId-print.pdf")
+            ?: findMediaStoreUri(MediaStore.Downloads.EXTERNAL_CONTENT_URI, "$sessionId-print.pdf")
+    }
+
+    private fun findMediaStoreUri(collection: Uri, displayName: String): Uri? {
+        return try {
+            context.contentResolver.query(
+                collection,
+                arrayOf(MediaStore.MediaColumns._ID),
+                "${MediaStore.MediaColumns.DISPLAY_NAME} = ? AND ${MediaStore.MediaColumns.MIME_TYPE} = ?",
+                arrayOf(displayName, "application/pdf"),
+                null
+            )?.use { cursor ->
+                if (cursor.moveToFirst()) ContentUris.withAppendedId(collection, cursor.getLong(0)) else null
+            }
+        } catch (_: Exception) {
+            null
+        }
+    }
+
     fun publicPdfOutputStream(sessionId: String): OutputStream {
-        val uri = publicPdfUri(sessionId)
+        val uri = createPublicPdfUri(sessionId)
         if (uri != null) {
             try {
                 val outputStream = context.contentResolver.openOutputStream(uri)
@@ -282,7 +305,7 @@ class KawaiiStorageService(private val context: Context) {
         }
     }
 
-    private fun publicPdfUri(sessionId: String): Uri? {
+    private fun createPublicPdfUri(sessionId: String): Uri? {
         val pictureValues = ContentValues().apply {
             put(MediaStore.MediaColumns.DISPLAY_NAME, "$sessionId-print.pdf")
             put(MediaStore.MediaColumns.MIME_TYPE, "application/pdf")

@@ -130,8 +130,11 @@ private fun calculateInSampleSize(originalWidth: Int, originalHeight: Int, reqWi
 internal fun savePrintFile(storageService: KawaiiStorageService, sessionId: String, bitmap: Bitmap): Boolean {
     val document = PdfDocument()
     return try {
-        val pageInfo = PdfDocument.PageInfo.Builder(bitmap.width, bitmap.height, 1).create()
+        val pageWidth = (bitmap.width * 72f / PrintConstants.PRINT_DPI).toInt()
+        val pageHeight = (bitmap.height * 72f / PrintConstants.PRINT_DPI).toInt()
+        val pageInfo = PdfDocument.PageInfo.Builder(pageWidth, pageHeight, 1).create()
         val page = document.startPage(pageInfo)
+        page.canvas.scale(pageWidth / bitmap.width.toFloat(), pageHeight / bitmap.height.toFloat())
         page.canvas.drawBitmap(bitmap, 0f, 0f, null)
         document.finishPage(page)
 

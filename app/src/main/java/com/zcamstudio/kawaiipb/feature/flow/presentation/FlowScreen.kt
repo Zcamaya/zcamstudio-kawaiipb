@@ -14,8 +14,10 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -24,6 +26,8 @@ import androidx.compose.material3.Text
 import com.zcamstudio.kawaiipb.app.LocalKawaiiPbDependencies
 import com.zcamstudio.kawaiipb.core.designsystem.*
 import com.zcamstudio.kawaiipb.domain.model.*
+import com.zcamstudio.kawaiipb.feature.printing.PrintService
+import java.io.File
 
 @Composable
 fun FlowScreen(
@@ -60,8 +64,27 @@ fun FlowScreen(
     onReturnToLanding: () -> Unit
 ) {
     val storageService = LocalKawaiiPbDependencies.current.storageService
+    val context = LocalContext.current
     val layoutMode = rememberKioskLayoutMode()
     val isPortrait = layoutMode == KioskLayoutMode.Portrait
+
+    LaunchedEffect(uiState.printOutputPath) {
+        val outputPath = uiState.printOutputPath ?: return@LaunchedEffect
+        runCatching {
+            PrintService.printPdf(
+                context,
+                "KawaiiPB ${uiState.sessionId}",
+                File(outputPath),
+                storageService.findPublicPdfUri(uiState.sessionId)
+            )
+        }.onFailure { exception ->
+            android.widget.Toast.makeText(
+                context,
+                "PDF saved, but printing could not start: ${exception.message ?: "Unknown error"}",
+                android.widget.Toast.LENGTH_LONG
+            ).show()
+        }
+    }
 
     Box(modifier = Modifier.fillMaxSize()) {
         KawaiiBackdrop(modifier = Modifier.fillMaxSize())
